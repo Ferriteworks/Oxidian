@@ -9,4 +9,5 @@ pub mod opcodes;
 /// High-level shard abstraction.
 pub mod shard;
 
+pub use events::DispatchEvent;
 pub use shard::Shard;

@@ -9,6 +9,9 @@ oxidian-gateway      = { workspace = true }
 oxidian-http         = { workspace = true }
 oxidian-interactions = { workspace = true }
 oxidian-voice        = { workspace = true }
+tokio                = { workspace = true }
+serde_json           = { workspace = true }
 tracing              = { workspace = true }
 tracing-subscriber   = { workspace = true }
 rustls               = { workspace = true }
+async-trait          = { workspace = true }

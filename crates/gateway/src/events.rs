@@ -1,3 +1,4 @@
+use oxidian_core::{models::{guild::Guild, message::Message}, snowflake::Snowflake};
 use serde::Deserialize;
 
 // ── Raw gateway payload ───────────────────────────────────────────────────────
@@ -29,29 +30,66 @@ pub struct HelloData {
 
 // ── Ready ─────────────────────────────────────────────────────────────────────
 
-/// Minimal `READY` event data — the fields needed to confirm the bot is online.
-///
-/// The full payload contains much more; additional fields will be added as
-/// models are implemented.
-#[derive(Debug, Deserialize)]
+/// Data from the READY dispatch event.
+#[derive(Debug, Clone, Deserialize)]
 pub struct ReadyData {
     /// Discord gateway protocol version negotiated for this session.
     pub v: u8,
-    /// The bot user object returned by Discord.
-    pub user: ReadyUser,
-    /// Opaque session ID required for `RESUME`.
+    /// The bot user object.
+    pub user: oxidian_core::models::user::User,
+    /// Opaque session ID required for RESUME.
     pub session_id: String,
-    /// The URL to use when reconnecting / resuming.
+    /// The URL to reconnect/resume on.
     pub resume_gateway_url: String,
 }
 
-/// Minimal user object embedded in the `READY` payload.
-#[derive(Debug, Deserialize)]
-pub struct ReadyUser {
-    /// The bot's Discord user ID (snowflake).
-    pub id: String,
-    /// The bot's username.
-    pub username: String,
-    /// The bot's discriminator (may be "0" for migrated accounts).
-    pub discriminator: String,
+// ── Message delete ────────────────────────────────────────────────────────────
+
+/// Data from a MESSAGE_DELETE event.
+#[derive(Debug, Clone, Deserialize)]
+pub struct MessageDeleteData {
+    pub id: Snowflake,
+    pub channel_id: Snowflake,
+    pub guild_id: Option<Snowflake>,
+}
+
+// ── Unavailable guild ─────────────────────────────────────────────────────────
+
+/// A guild that is unavailable due to an outage, or whose ID appeared in a
+/// GUILD_DELETE event.
+#[derive(Debug, Clone, Deserialize)]
+pub struct UnavailableGuild {
+    pub id: Snowflake,
+    #[serde(default)]
+    pub unavailable: bool,
+}
+
+// ── DispatchEvent ─────────────────────────────────────────────────────────────
+
+/// A fully parsed Discord dispatch event (opcode 0).
+///
+/// Each variant corresponds to a `t` value sent by the gateway.
+/// `Unknown` catches any event type that isn't explicitly handled.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum DispatchEvent {
+    /// The bot has successfully identified and is ready.
+    Ready(ReadyData),
+    /// A new message was created in a channel.
+    MessageCreate(Message),
+    /// A message was deleted.
+    MessageDelete(MessageDeleteData),
+    /// The bot joined a guild or a guild became available.
+    GuildCreate(Guild),
+    /// A guild was updated.
+    GuildUpdate(Guild),
+    /// The bot was removed from a guild, or the guild became unavailable.
+    GuildDelete(UnavailableGuild),
+    /// An event type that isn't explicitly handled above.
+    Unknown {
+        /// The event name (`t` field from the payload).
+        name: String,
+        /// The raw event data.
+        data: serde_json::Value,
+    },
 }

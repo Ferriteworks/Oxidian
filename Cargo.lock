@@ -18,6 +18,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
+name = "async-trait"
+version = "0.1.89"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9035ad2d096bed7955a320ee7e2230574d28fd3c3a0f186cbea1ff3c7eed5dbb"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -837,12 +848,15 @@ dependencies = [
 name = "oxidian"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "oxidian-core",
  "oxidian-gateway",
  "oxidian-http",
  "oxidian-interactions",
  "oxidian-voice",
  "rustls",
+ "serde_json",
+ "tokio",
  "tracing",
  "tracing-subscriber",
 ]
@@ -1434,6 +1448,7 @@ dependencies = [
 name = "test-bot"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "oxidian",
  "tokio",
  "tracing",

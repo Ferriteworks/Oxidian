@@ -7,14 +7,27 @@ pub use oxidian_voice as voice;
 /// Re-export the central error type for convenience.
 pub use oxidian_core::error::{Error, Result};
 
-/// Re-export the top-level [`Shard`](gateway::Shard) at crate root.
+/// Re-export [`Shard`] at crate root for users who want direct gateway access.
 pub use oxidian_gateway::Shard;
 
-/// Re-export [`HttpClient`](http::HttpClient) at crate root.
+/// Re-export [`HttpClient`] at crate root.
 pub use oxidian_http::HttpClient;
 
-/// Re-export [`Snowflake`](core::snowflake::Snowflake) at crate root.
+/// Re-export [`Snowflake`] at crate root.
 pub use oxidian_core::snowflake::Snowflake;
+
+/// Request context passed to event handlers and command callbacks.
+pub mod context;
+/// [`EventHandler`] trait for receiving gateway events.
+pub mod handler;
+/// Prefix command registry.
+pub mod command;
+/// High-level [`Bot`] entry point.
+pub mod bot;
+
+pub use bot::{Bot, BotBuilder};
+pub use context::Context;
+pub use handler::EventHandler;
 
 /// Initialise Oxidian: installs the rustls crypto provider (ring) and sets up
 /// the `tracing` subscriber from the `RUST_LOG` environment variable.
