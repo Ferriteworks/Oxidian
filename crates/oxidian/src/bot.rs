@@ -11,7 +11,7 @@ use oxidian_gateway::{events::DispatchEvent, Shard};
 use oxidian_http::HttpClient;
 
 use crate::{
-    command::CommandRegistry,
+    command::{Command, CommandRegistry},
     context::Context,
     handler::{DefaultHandler, EventHandler},
 };
@@ -127,7 +127,7 @@ impl BotBuilder {
         self
     }
 
-    /// Register a prefix command.
+    /// Register an inline prefix command.
     ///
     /// The `name` should **not** include the prefix character (e.g. `"ping"`,
     /// not `"!ping"`).
@@ -137,6 +137,22 @@ impl BotBuilder {
         Fut: Future<Output = Result<()>> + Send + 'static,
     {
         self.commands.register(name, f);
+        self
+    }
+
+    /// Register a [`Command`] module.
+    ///
+    /// The idiomatic pattern is to define one command per file, each exposing
+    /// a `pub fn command() -> Command` function, then register them here:
+    ///
+    /// ```rust,ignore
+    /// Bot::builder(token)
+    ///     .register_module(commands::ping::command())
+    ///     .register_module(commands::echo::command())
+    ///     .build()
+    /// ```
+    pub fn register_module(mut self, cmd: Command) -> Self {
+        self.commands.add(cmd);
         self
     }
 

@@ -1,13 +1,107 @@
 # Oxidian
 
+A Discord bot library for Rust. Async, modular, and built on [Tokio](https://tokio.rs).
 
-## What is Oxidian?
+> **This is early-stage software.** The API will change, things will break, and there are features that aren't implemented yet. That said, the gateway connects, events fire, and prefix commands work. If you're building something and want to use Oxidian, expect to track main closely for now.
 
-Oxidian is a Rust library for working with the Discord API (essentially for building Discord bots). It provides a high-level interface for interacting with the Discord API, including features such as:
-- A WebSocket gateway client for receiving real-time events from Discord.
-- An HTTP client for making REST API calls to Discord.
+## What it does
 
-NOTICE: Oxidian is currently in early development, and the API is subject to change. Use with caution, and be prepared for breaking changes in future releases. Current version is NOT intended for public use, and may contain bugs and incomplete features. Contributions are welcome, but please be aware that the API may change significantly as development progresses.
+- Connects to the Discord gateway over WebSocket (with heartbeating, reconnects, and exponential backoff)
+- Delivers typed gateway events to your handler (`READY`, `MESSAGE_CREATE`, `GUILD_CREATE`, and more)
+- Handles Discord's REST rate limits automatically — per-route buckets, global limits, and 429 retries
+- Ships a prefix command system so you can organize commands as individual files
+
+## Quick example
+
+```rust
+mod commands;
+
+use async_trait::async_trait;
+use oxidian::{Bot, Context, EventHandler};
+use oxidian::gateway::events::ReadyData;
+
+// GUILDS | GUILD_MESSAGES | MESSAGE_CONTENT
+const INTENTS: u64 = (1 << 0) | (1 << 9) | (1 << 15);
+
+struct Handler;
+
+#[async_trait]
+impl EventHandler for Handler {
+    async fn ready(&self, _ctx: Context, ready: ReadyData) {
+        println!("online as {}!", ready.user.username);
+    }
+}
+
+#[tokio::main]
+async fn main() {
+    oxidian::init_logging();
+    let token = std::env::var("DISCORD_TOKEN").unwrap();
+
+    Bot::builder(token)
+        .intents(INTENTS)
+        .prefix("!")
+        .handler(Handler)
+        .register_module(commands::ping::command())
+        .build()
+        .start()
+        .await
+        .unwrap();
+}
+```
+
+Each command lives in its own file:
+
+```rust
+// commands/ping.rs
+use oxidian::{command::Command, Context};
+use oxidian::core::models::message::Message;
+
+pub fn command() -> Command {
+    Command::new("ping", |ctx: Context, msg: Message, _args| async move {
+        ctx.reply(&msg, "pong!").await?;
+        Ok(())
+    })
+}
+```
+
+## Documentation
+
+- [Getting started](docs/getting-started.md) — step-by-step setup from scratch
+- [Commands](docs/commands.md) — the prefix command system and module pattern
+- [Event handling](docs/event-handling.md) — implementing `EventHandler` and working with intents
+- [Architecture](docs/architecture.md) — how the crates fit together internally
+
+## Workspace layout
+
+```
+crates/
+  core/          ← error types, models (User, Guild, Message, …), Snowflake
+  gateway/       ← WebSocket connection, heartbeat, typed events
+  http/          ← REST client with rate limiting
+  interactions/  ← slash commands (early)
+  voice/         ← voice (early)
+  oxidian/       ← re-exports everything, Bot/EventHandler/Context live here
+testBot/         ← example bot used for manual testing
+```
+
+## Status
+
+| Feature | Status |
+|---------|--------|
+| Gateway connection + heartbeat | ✅ working |
+| Typed dispatch events | ✅ working |
+| Prefix commands + module pattern | ✅ working |
+| HTTP client + rate limiting | ✅ working |
+| Core models (User, Guild, Channel, Message, Member, Role) | ✅ working |
+| Slash commands | 🔧 scaffolded, not functional |
+| Voice | 🔧 scaffolded, not functional |
+| Resume / session recovery | ⏳ not started |
+| Sharding | ⏳ not started |
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
 
 
 ## Documentation

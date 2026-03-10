@@ -26,6 +26,7 @@ pub mod command;
 pub mod bot;
 
 pub use bot::{Bot, BotBuilder};
+pub use command::Command;
 pub use context::Context;
 pub use handler::EventHandler;
 
