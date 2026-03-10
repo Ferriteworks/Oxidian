@@ -9,10 +9,12 @@ NOTICE: Oxidian is currently in early development, and the API is subject to cha
 
 
 **Where can I find documentation?**
+
 Documentation is currently in progress and may be incomplete. Please refer to the source code for usage examples and API details. As development continues, more comprehensive documentation will be provided.
 
 You can probably find some documentation in docs/
 
 **How do I contribute?**
+
 Contributions are welcome! Please feel free to open issues or submit pull requests. Refer to the CONTRIBUTING.md file for guidelines on how to contribute to the project.
 
