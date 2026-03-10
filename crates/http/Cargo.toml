@@ -1,0 +1,13 @@
+[package]
+name = "oxidian-http"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+oxidian-core = { workspace = true }
+serde        = { workspace = true }
+serde_json   = { workspace = true }
+tokio        = { workspace = true }
+thiserror    = { workspace = true }
+reqwest      = { workspace = true }
+tracing      = { workspace = true }

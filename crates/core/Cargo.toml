@@ -1,4 +1,10 @@
 [package]
-name = "oxidant-core"
-version = "0.1.0"
-edition = "2021"
+name = "oxidian-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde      = { workspace = true }
+serde_json = { workspace = true }
+thiserror  = { workspace = true }
+bitflags   = { workspace = true }

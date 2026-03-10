@@ -1,0 +1,36 @@
+[workspace]
+members = [
+    "crates/core",
+    "crates/gateway",
+    "crates/http",
+    "crates/interactions",
+    "crates/voice",
+    "crates/oxidian",
+    "testBot",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/KilledInAction/Oxidian"
+
+[workspace.dependencies]
+oxidian-core         = { path = "crates/core" }
+oxidian-gateway      = { path = "crates/gateway" }
+oxidian-http         = { path = "crates/http" }
+oxidian-interactions = { path = "crates/interactions" }
+oxidian-voice        = { path = "crates/voice" }
+
+serde            = { version = "1", features = ["derive"] }
+serde_json       = "1"
+tokio            = { version = "1", features = ["full"] }
+thiserror        = "2"
+bitflags         = "2"
+futures-util     = "0.3"
+tokio-tungstenite = { version = "0.26", features = ["rustls-tls-native-roots"] }
+reqwest          = { version = "0.12", features = ["json"] }
+rustls           = { version = "0.23", features = ["ring"] }
+tracing          = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
