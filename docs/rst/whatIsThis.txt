@@ -1,0 +1,3 @@
+docs/rst/ is a directory that contains the API documentation files in reStructuredText format (rst) for use with Sphinx and Read The Docs.
+
+For in-github documentation, read the docs/*.md files. These are markdown files that are used for documentation on GitHub, such as the README.md file.
