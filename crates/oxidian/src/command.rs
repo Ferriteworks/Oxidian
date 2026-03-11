@@ -1,3 +1,25 @@
+// MIT License
+//
+// Copyright (c) 2026 Ferriteworks organization and its rightful owners.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
 
 use oxidian_core::{
@@ -5,6 +27,7 @@ use oxidian_core::{
     models::{interaction::Interaction, message::Message},
 };
 use oxidian_interactions::command::ApplicationCommand;
+use oxidian_interactions::context_menu::{MessageCommand, UserCommand};
 
 use crate::context::Context;
 
@@ -115,9 +138,28 @@ pub trait Module: Send + Sync + 'static {
         vec![]
     }
 
+    /// User context-menu command definitions this module provides.
+    fn user_commands(&self) -> Vec<UserCommand> {
+        vec![]
+    }
+
+    /// Message context-menu command definitions this module provides.
+    fn message_commands(&self) -> Vec<MessageCommand> {
+        vec![]
+    }
+
     /// Called when a slash command interaction arrives whose name matches one
     /// of the names returned by [`slash_commands`](Self::slash_commands).
     async fn handle_interaction(&self, _ctx: Context, _interaction: Interaction) {}
+
+    /// Called when a user/message context-menu command interaction arrives
+    /// whose name matches one returned by [`user_commands`](Self::user_commands)
+    /// or [`message_commands`](Self::message_commands).
+    async fn handle_context_menu(&self, _ctx: Context, _interaction: Interaction) {}
+
+    /// Called when an autocomplete interaction arrives for a command this
+    /// module owns (matched by [`slash_commands`](Self::slash_commands) name).
+    async fn handle_autocomplete(&self, _ctx: Context, _interaction: Interaction) {}
 }
 
 /// Registry mapping command names to their handler functions.

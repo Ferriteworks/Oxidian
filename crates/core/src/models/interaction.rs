@@ -1,3 +1,25 @@
+// MIT License
+//
+// Copyright (c) 2026 Ferriteworks organization and its rightful owners.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 //! Discord interaction model.
 //!
 //! Interactions arrive via the `INTERACTION_CREATE` gateway dispatch event when
@@ -8,7 +30,10 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    models::{member::Member, message::Message, user::User},
+    models::{
+        channel::Channel, embed::Embed, member::Member, message::Message, role::Role,
+        user::User,
+    },
     snowflake::Snowflake,
 };
 
@@ -136,6 +161,18 @@ pub struct ResolvedData {
     /// Guild members resolved from option values.
     #[serde(default)]
     pub members: HashMap<Snowflake, Member>,
+    /// Roles resolved from option values.
+    #[serde(default)]
+    pub roles: HashMap<Snowflake, Role>,
+    /// Channels resolved from option values.
+    #[serde(default)]
+    pub channels: HashMap<Snowflake, Channel>,
+    /// Messages resolved from option values (context-menu message commands).
+    #[serde(default)]
+    pub messages: HashMap<Snowflake, Message>,
+    /// Attachments resolved from option values.
+    #[serde(default)]
+    pub attachments: HashMap<Snowflake, serde_json::Value>,
 }
 
 /// A single option value provided to an application command.
@@ -246,6 +283,18 @@ pub struct Interaction {
     /// The message the component was attached to (component interactions only).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<Message>,
+    /// Bitwise set of permissions the app has in the source channel.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub app_permissions: Option<String>,
+    /// The selected language of the invoking user.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locale: Option<String>,
+    /// The guild's preferred locale (guild-only).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub guild_locale: Option<String>,
+    /// For monetized apps, any entitlements for the invoking user.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub entitlements: Vec<serde_json::Value>,
 }
 
 impl Interaction {
@@ -300,6 +349,11 @@ pub enum InteractionResponseType {
     ApplicationCommandAutocompleteResult = 8,
     /// Respond with a modal dialog.
     Modal = 9,
+    /// Respond with an upgrade prompt for premium (deprecated).
+    #[deprecated = "Use InteractionResponseType::Modal or a custom premium flow instead"]
+    PremiumRequired = 10,
+    /// Launch an activity associated with the app.
+    LaunchActivity = 12,
 }
 
 impl TryFrom<u8> for InteractionResponseType {
@@ -313,6 +367,9 @@ impl TryFrom<u8> for InteractionResponseType {
             7 => Ok(Self::UpdateMessage),
             8 => Ok(Self::ApplicationCommandAutocompleteResult),
             9 => Ok(Self::Modal),
+            #[allow(deprecated)]
+            10 => Ok(Self::PremiumRequired),
+            12 => Ok(Self::LaunchActivity),
             _ => Err(format!("unknown interaction response type: {v}")),
         }
     }
@@ -324,21 +381,51 @@ impl From<InteractionResponseType> for u8 {
     }
 }
 
-/// Message data for an interaction response.
+/// Data payload for an interaction response.
+///
+/// Fields are shared across message, autocomplete, and modal response types;
+/// unused fields are omitted during serialization.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct InteractionCallbackData {
+    // --- Message response fields ---
     /// Text content of the message.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
-    /// Message flags. Set bit 6 (`64`) for ephemeral messages.
+    /// Message flags. Set bit 6 (`64`) for ephemeral, bit 15 (`32768`) for
+    /// components v2.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub flags: Option<u64>,
-    /// Embeds to include.
+    /// Embeds to include in the response.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub embeds: Vec<serde_json::Value>,
-    /// Components to include.
+    pub embeds: Vec<Embed>,
+    /// Components to include (action rows, v2 layout primitives, etc.).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub components: Vec<serde_json::Value>,
+    /// Whether this is a TTS message.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tts: Option<bool>,
+    /// Allowed mentions configuration.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allowed_mentions: Option<serde_json::Value>,
+    /// Attachment objects to include.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub attachments: Vec<serde_json::Value>,
+    /// A poll object attached to the response.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub poll: Option<serde_json::Value>,
+
+    // --- Autocomplete response fields ---
+    /// Choices shown to the user (autocomplete responses only).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub choices: Vec<AutocompleteChoice>,
+
+    // --- Modal response fields ---
+    /// Developer-defined ID for the modal.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub custom_id: Option<String>,
+    /// Title shown at the top of the modal (max 45 characters).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
 }
 
 impl InteractionCallbackData {
@@ -357,6 +444,23 @@ impl InteractionCallbackData {
             flags: Some(64),
             ..Default::default()
         }
+    }
+
+    /// Append an embed to this callback data.
+    pub fn embed(mut self, embed: Embed) -> Self {
+        self.embeds.push(embed);
+        self
+    }
+
+    /// Append a component (serialized to JSON) to this callback data.
+    ///
+    /// Accepts any component type that implements [`serde::Serialize`] — for
+    /// example `ActionRow`, `Container`, `TextDisplay`, etc.
+    pub fn component(mut self, component: impl serde::Serialize) -> Self {
+        let val = serde_json::to_value(component)
+            .expect("component serialization should not fail");
+        self.components.push(val);
+        self
     }
 }
 
@@ -402,6 +506,75 @@ impl InteractionResponse {
             kind: InteractionResponseType::DeferredUpdateMessage,
             data: None,
         }
+    }
+
+    /// For component interactions: edit the message the component was on.
+    pub fn update_message(content: impl Into<String>) -> Self {
+        Self {
+            kind: InteractionResponseType::UpdateMessage,
+            data: Some(InteractionCallbackData::message(content)),
+        }
+    }
+
+    /// Respond with autocomplete choices.
+    pub fn autocomplete(choices: impl IntoIterator<Item = AutocompleteChoice>) -> Self {
+        Self {
+            kind: InteractionResponseType::ApplicationCommandAutocompleteResult,
+            data: Some(InteractionCallbackData {
+                choices: choices.into_iter().collect(),
+                ..Default::default()
+            }),
+        }
+    }
+
+    /// Respond with a modal dialog.
+    ///
+    /// `components` should be action rows containing text inputs. Any type
+    /// that implements [`serde::Serialize`] is accepted — each element is
+    /// serialized to JSON internally.
+    pub fn modal(
+        custom_id: impl Into<String>,
+        title: impl Into<String>,
+        components: impl IntoIterator<Item = impl serde::Serialize>,
+    ) -> Self {
+        let components: Vec<serde_json::Value> = components
+            .into_iter()
+            .map(|c| {
+                serde_json::to_value(c)
+                    .expect("modal component serialization should not fail")
+            })
+            .collect();
+        Self {
+            kind: InteractionResponseType::Modal,
+            data: Some(InteractionCallbackData {
+                custom_id: Some(custom_id.into()),
+                title: Some(title.into()),
+                components,
+                ..Default::default()
+            }),
+        }
+    }
+
+    /// Append an embed to the response.
+    pub fn embed(mut self, embed: Embed) -> Self {
+        self.data
+            .get_or_insert_with(Default::default)
+            .embeds
+            .push(embed);
+        self
+    }
+
+    /// Append a component to the response.
+    ///
+    /// Accepts any type that implements [`serde::Serialize`].
+    pub fn component(mut self, component: impl serde::Serialize) -> Self {
+        let val = serde_json::to_value(component)
+            .expect("component serialization should not fail");
+        self.data
+            .get_or_insert_with(Default::default)
+            .components
+            .push(val);
+        self
     }
 }
 

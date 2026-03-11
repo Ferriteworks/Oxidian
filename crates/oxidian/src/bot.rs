@@ -1,3 +1,25 @@
+// MIT License
+//
+// Copyright (c) 2026 Ferriteworks organization and its rightful owners.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 use std::{future::Future, sync::Arc};
 
 use tokio::sync::mpsc;
@@ -220,20 +242,68 @@ async fn dispatch(
             handler.guild_update(ctx, guild).await;
         }
         DispatchEvent::InteractionCreate(interaction) => {
-            // Route to the first module whose slash_commands() names match
-            // this interaction's command name; fall back to the global handler.
-            let routed: Option<Arc<dyn Module>> = {
-                let cmd_name = interaction.command_data().map(|d| d.name.clone());
-                cmd_name.and_then(|name| {
-                    modules
-                        .iter()
-                        .find(|m| m.slash_commands().iter().any(|c| c.name == name))
-                        .map(Arc::clone)
-                })
+            use oxidian_core::models::interaction::{
+                ApplicationCommandType, InteractionType,
             };
-            match routed {
-                Some(module) => module.handle_interaction(ctx, interaction).await,
-                None => handler.interaction(ctx, interaction).await,
+
+            match interaction.kind {
+                InteractionType::ApplicationCommand => {
+                    if let Some(data) = interaction.command_data() {
+                        let module = match data.kind {
+                            ApplicationCommandType::ChatInput => {
+                                modules.iter().find(|m| {
+                                    m.slash_commands()
+                                        .iter()
+                                        .any(|c| c.name == data.name)
+                                })
+                            }
+                            ApplicationCommandType::User => modules.iter().find(|m| {
+                                m.user_commands().iter().any(|c| c.name == data.name)
+                            }),
+                            ApplicationCommandType::Message => {
+                                modules.iter().find(|m| {
+                                    m.message_commands()
+                                        .iter()
+                                        .any(|c| c.name == data.name)
+                                })
+                            }
+                        };
+
+                        if let Some(module) = module.map(Arc::clone) {
+                            match data.kind {
+                                ApplicationCommandType::ChatInput => {
+                                    module.handle_interaction(ctx, interaction).await;
+                                }
+                                _ => {
+                                    module.handle_context_menu(ctx, interaction).await;
+                                }
+                            }
+                        } else {
+                            handler.interaction(ctx, interaction).await;
+                        }
+                    } else {
+                        handler.interaction(ctx, interaction).await;
+                    }
+                }
+                InteractionType::ApplicationCommandAutocomplete => {
+                    let module = interaction.command_data().and_then(|data| {
+                        modules
+                            .iter()
+                            .find(|m| {
+                                m.slash_commands().iter().any(|c| c.name == data.name)
+                            })
+                            .map(Arc::clone)
+                    });
+                    match module {
+                        Some(m) => {
+                            m.handle_autocomplete(ctx, interaction).await;
+                        }
+                        None => handler.interaction(ctx, interaction).await,
+                    }
+                }
+                // MessageComponent, ModalSubmit, Ping — fall through to the
+                // generic interaction handler.
+                _ => handler.interaction(ctx, interaction).await,
             }
         }
         DispatchEvent::Resumed => {

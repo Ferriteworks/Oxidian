@@ -1,3 +1,25 @@
+// MIT License
+//
+// Copyright (c) 2026 Ferriteworks organization and its rightful owners.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 //! Discord message components v2.
 //!
 //! Components v2 adds layout primitives such as [`Section`], [`TextDisplay`],
@@ -49,6 +71,14 @@ impl From<ComponentV2Type> for u8 {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UnfurlMedia {
     pub url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub proxy_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub height: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub width: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content_type: Option<String>,
 }
 
 /// A text block displaying formatted markdown content.
@@ -124,7 +154,13 @@ pub struct MediaGalleryItem {
 impl MediaGalleryItem {
     pub fn new(url: impl Into<String>) -> Self {
         Self {
-            media: UnfurlMedia { url: url.into() },
+            media: UnfurlMedia {
+                url: url.into(),
+                proxy_url: None,
+                height: None,
+                width: None,
+                content_type: None,
+            },
             description: None,
             spoiler: false,
         }
@@ -216,5 +252,157 @@ impl Container {
 impl Default for Container {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Section
+// ---------------------------------------------------------------------------
+
+/// A layout section containing text content and an optional accessory
+/// (button or thumbnail) displayed to the right.
+///
+/// ```rust,ignore
+/// let section = Section::new()
+///     .text(TextDisplay::new("Some info"))
+///     .accessory(Thumbnail::new("https://example.com/icon.png"));
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Section {
+    #[serde(rename = "type")]
+    pub kind: ComponentV2Type,
+    /// Text components inside the section (typically [`TextDisplay`]).
+    pub components: Vec<Value>,
+    /// An accessory displayed to the right (a [`Button`] or [`Thumbnail`]).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub accessory: Option<Box<Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<u32>,
+}
+
+impl Section {
+    pub fn new() -> Self {
+        Self {
+            kind: ComponentV2Type::Section,
+            components: Vec::new(),
+            accessory: None,
+            id: None,
+        }
+    }
+
+    /// Add a text display component to this section.
+    pub fn text(mut self, text: TextDisplay) -> Self {
+        self.components.push(text.into_value());
+        self
+    }
+
+    /// Set the accessory displayed alongside this section.
+    pub fn accessory(mut self, accessory: impl serde::Serialize) -> Self {
+        let val = serde_json::to_value(accessory)
+            .expect("accessory serialization never fails");
+        self.accessory = Some(Box::new(val));
+        self
+    }
+
+    pub fn into_value(self) -> Value {
+        serde_json::to_value(self).expect("Section serialize never fails")
+    }
+}
+
+impl Default for Section {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Thumbnail
+// ---------------------------------------------------------------------------
+
+/// A small image typically used as an accessory inside a [`Section`].
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Thumbnail {
+    #[serde(rename = "type")]
+    pub kind: ComponentV2Type,
+    pub media: UnfurlMedia,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub spoiler: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<u32>,
+}
+
+impl Thumbnail {
+    pub fn new(url: impl Into<String>) -> Self {
+        Self {
+            kind: ComponentV2Type::Thumbnail,
+            media: UnfurlMedia {
+                url: url.into(),
+                proxy_url: None,
+                height: None,
+                width: None,
+                content_type: None,
+            },
+            description: None,
+            spoiler: false,
+            id: None,
+        }
+    }
+
+    pub fn description(mut self, desc: impl Into<String>) -> Self {
+        self.description = Some(desc.into());
+        self
+    }
+
+    pub fn spoiler(mut self) -> Self {
+        self.spoiler = true;
+        self
+    }
+
+    pub fn into_value(self) -> Value {
+        serde_json::to_value(self).expect("Thumbnail serialize never fails")
+    }
+}
+
+// ---------------------------------------------------------------------------
+// File
+// ---------------------------------------------------------------------------
+
+/// A file attachment component displayed as a downloadable block.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileComponent {
+    #[serde(rename = "type")]
+    pub kind: ComponentV2Type,
+    pub file: UnfurlMedia,
+    #[serde(default)]
+    pub spoiler: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<u32>,
+}
+
+impl FileComponent {
+    pub fn new(url: impl Into<String>) -> Self {
+        Self {
+            kind: ComponentV2Type::File,
+            file: UnfurlMedia {
+                url: url.into(),
+                proxy_url: None,
+                height: None,
+                width: None,
+                content_type: None,
+            },
+            spoiler: false,
+            id: None,
+        }
+    }
+
+    pub fn spoiler(mut self) -> Self {
+        self.spoiler = true;
+        self
+    }
+
+    pub fn into_value(self) -> Value {
+        serde_json::to_value(self).expect("FileComponent serialize never fails")
     }
 }

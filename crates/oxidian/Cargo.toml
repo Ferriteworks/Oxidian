@@ -3,6 +3,18 @@ name = "oxidian"
 version.workspace = true
 edition.workspace = true
 
+[[example]]
+name = "ping_bot"
+path = "../../examples/ping_bot.rs"
+
+[[example]]
+name = "slash_commands"
+path = "../../examples/slash_commands.rs"
+
+[[example]]
+name = "components_v2"
+path = "../../examples/components_v2.rs"
+
 [dependencies]
 oxidian-core         = { workspace = true }
 oxidian-gateway      = { workspace = true }

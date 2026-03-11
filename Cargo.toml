@@ -14,7 +14,7 @@ resolver = "2"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/KilledInAction/Oxidian"
+repository = "https://github.com/Ferriteworks/Oxidian"
 
 [workspace.dependencies]
 oxidian-core         = { path = "crates/core" }

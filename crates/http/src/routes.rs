@@ -1,3 +1,25 @@
+// MIT License
+//
+// Copyright (c) 2026 Ferriteworks organization and its rightful owners.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 //! Typed Discord REST API route definitions.
 //!
 //! Each variant of [`Route`] maps to a specific Discord endpoint.  The route
@@ -118,6 +140,16 @@ pub enum Route {
         interaction_id: Snowflake,
         interaction_token: String,
     },
+    /// `PATCH /channels/{channel.id}/messages/{message.id}`
+    EditMessage {
+        channel_id: Snowflake,
+        message_id: Snowflake,
+    },
+    /// `PATCH /webhooks/{application_id}/{interaction_token}/messages/@original`
+    EditOriginalInteractionResponse {
+        application_id: Snowflake,
+        interaction_token: String,
+    },
 }
 
 impl Route {
@@ -141,6 +173,10 @@ impl Route {
 
             Self::BulkOverwriteGlobalCommands { .. }
             | Self::BulkOverwriteGuildCommands { .. } => Method::Put,
+
+            Self::EditMessage { .. } | Self::EditOriginalInteractionResponse { .. } => {
+                Method::Patch
+            }
 
             Self::DeleteMessage { .. }
             | Self::DeleteGlobalCommand { .. }
@@ -205,6 +241,16 @@ impl Route {
                 interaction_id,
                 interaction_token,
             } => format!("{base}/interactions/{interaction_id}/{interaction_token}/callback"),
+            Self::EditMessage {
+                channel_id,
+                message_id,
+            } => format!("{base}/channels/{channel_id}/messages/{message_id}"),
+            Self::EditOriginalInteractionResponse {
+                application_id,
+                interaction_token,
+            } => format!(
+                "{base}/webhooks/{application_id}/{interaction_token}/messages/@original"
+            ),
         }
     }
 
@@ -255,6 +301,12 @@ impl Route {
             } => format!("application:{application_id}:guild:{guild_id}:commands"),
 
             Self::CreateInteractionResponse { .. } => "interaction".to_owned(),
+
+            Self::EditMessage { channel_id, .. } => format!("channel:{channel_id}"),
+
+            Self::EditOriginalInteractionResponse { application_id, .. } => {
+                format!("webhook:{application_id}")
+            }
         }
     }
 }

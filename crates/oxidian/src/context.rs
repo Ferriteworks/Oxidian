@@ -1,10 +1,32 @@
+// MIT License
+//
+// Copyright (c) 2026 Ferriteworks organization and its rightful owners.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 use std::sync::Arc;
 
 use oxidian_core::{
     error::{Error as OxidianError, HttpError, Result},
     models::{
         interaction::{Interaction, InteractionResponse},
-        message::Message,
+        message::{CreateMessage, Message},
     },
     snowflake::Snowflake,
 };
@@ -131,5 +153,65 @@ impl Context {
         self.http
             .create_interaction_response(interaction.id, &interaction.token, body)
             .await
+    }
+
+    /// Send a structured message payload to a channel.
+    ///
+    /// Use this when you need embeds, components, or flags. For plain text,
+    /// [`send`](Self::send) is simpler.
+    ///
+    /// ```rust,ignore
+    /// use oxidian::core::models::message::CreateMessage;
+    /// use oxidian::core::models::embed::EmbedBuilder;
+    ///
+    /// let msg = CreateMessage::new()
+    ///     .content("Look at this embed!")
+    ///     .embed(EmbedBuilder::new().title("Hi").color(0x00FF00).build());
+    /// ctx.send_message(channel_id, msg).await?;
+    /// ```
+    pub async fn send_message(
+        &self,
+        channel_id: Snowflake,
+        message: CreateMessage,
+    ) -> Result<Message> {
+        let body =
+            serde_json::to_value(&message).map_err(OxidianError::Serialization)?;
+        let value = self.http.create_message(channel_id, body).await?;
+        serde_json::from_value(value).map_err(|e| {
+            HttpError::Decode(format!("failed to deserialize sent message: {e}")).into()
+        })
+    }
+
+    /// Edit the original response to a deferred interaction.
+    ///
+    /// ```rust,ignore
+    /// // In the handler, first defer:
+    /// ctx.respond(&interaction, InteractionResponse::defer()).await?;
+    ///
+    /// // ... do async work ...
+    ///
+    /// // Then edit the deferred response:
+    /// let msg = CreateMessage::new().content("Done!");
+    /// ctx.edit_response(&interaction, msg).await?;
+    /// ```
+    pub async fn edit_response(
+        &self,
+        interaction: &Interaction,
+        message: CreateMessage,
+    ) -> Result<Message> {
+        let body =
+            serde_json::to_value(&message).map_err(OxidianError::Serialization)?;
+        let value = self
+            .http
+            .edit_original_interaction_response(
+                interaction.application_id,
+                &interaction.token,
+                body,
+            )
+            .await?;
+        serde_json::from_value(value).map_err(|e| {
+            HttpError::Decode(format!("failed to deserialize edited response: {e}"))
+                .into()
+        })
     }
 }

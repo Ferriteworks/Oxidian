@@ -19,7 +19,7 @@ Add Oxidian and the other required crates to `Cargo.toml`:
 
 ```toml
 [dependencies]
-oxidian     = { git = "https://github.com/KilledInAction/Oxidian" }
+oxidian     = { git = "https://github.com/Ferriteworks/Oxidian" }
 tokio       = { version = "1", features = ["full"] }
 async-trait = "0.1"
 tracing     = "0.1"

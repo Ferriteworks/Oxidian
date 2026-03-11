@@ -1,3 +1,25 @@
+// MIT License
+//
+// Copyright (c) 2026 Ferriteworks organization and its rightful owners.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 //! Discord message components (v1 — buttons, select menus, text inputs).
 //!
 //! Wrap components inside an [`ActionRow`] before including them in a message.
@@ -58,6 +80,8 @@ pub enum ButtonStyle {
     Danger = 4,
     /// Opens a URL (no `custom_id`, must have `url`).
     Link = 5,
+    /// Opens an SKU purchase flow (requires `sku_id`, no `custom_id`/`url`).
+    Premium = 6,
 }
 
 impl TryFrom<u8> for ButtonStyle {
@@ -69,6 +93,7 @@ impl TryFrom<u8> for ButtonStyle {
             3 => Ok(Self::Success),
             4 => Ok(Self::Danger),
             5 => Ok(Self::Link),
+            6 => Ok(Self::Premium),
             _ => Err(format!("unknown button style: {v}")),
         }
     }
@@ -111,12 +136,15 @@ pub struct Button {
     pub label: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub emoji: Option<PartialEmoji>,
-    /// Developer-defined identifier (not used for Link buttons).
+    /// Developer-defined identifier (not used for Link/Premium buttons).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_id: Option<String>,
     /// URL to open (Link buttons only).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
+    /// SKU ID for Premium buttons.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sku_id: Option<Snowflake>,
     #[serde(default)]
     pub disabled: bool,
 }
@@ -131,6 +159,7 @@ impl Button {
             emoji: None,
             custom_id: Some(custom_id.into()),
             url: None,
+            sku_id: None,
             disabled: false,
         }
     }
@@ -144,6 +173,21 @@ impl Button {
             emoji: None,
             custom_id: None,
             url: Some(url.into()),
+            sku_id: None,
+            disabled: false,
+        }
+    }
+
+    /// Create a Premium button that opens an SKU purchase flow.
+    pub fn premium(sku_id: Snowflake) -> Self {
+        Self {
+            kind: ComponentType::Button,
+            style: ButtonStyle::Premium,
+            label: None,
+            emoji: None,
+            custom_id: None,
+            url: None,
+            sku_id: Some(sku_id),
             disabled: false,
         }
     }
@@ -293,6 +337,36 @@ impl ActionRow {
         self
     }
 
+    /// Add a text input to this row (for modals).
+    pub fn text_input(mut self, input: TextInput) -> Self {
+        self.components.push(input.into_value());
+        self
+    }
+
+    /// Add a user select menu to this row.
+    pub fn user_select(mut self, menu: UserSelect) -> Self {
+        self.components.push(menu.into_value());
+        self
+    }
+
+    /// Add a role select menu to this row.
+    pub fn role_select(mut self, menu: RoleSelect) -> Self {
+        self.components.push(menu.into_value());
+        self
+    }
+
+    /// Add a mentionable select menu to this row.
+    pub fn mentionable_select(mut self, menu: MentionableSelect) -> Self {
+        self.components.push(menu.into_value());
+        self
+    }
+
+    /// Add a channel select menu to this row.
+    pub fn channel_select(mut self, menu: ChannelSelect) -> Self {
+        self.components.push(menu.into_value());
+        self
+    }
+
     /// Serialize to a JSON [`Value`].
     pub fn into_value(self) -> Value {
         serde_json::to_value(self).expect("ActionRow serialize never fails")
@@ -302,5 +376,380 @@ impl ActionRow {
 impl Default for ActionRow {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Text input (modals)
+// ---------------------------------------------------------------------------
+
+/// Visual style for a [`TextInput`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "u8", into = "u8")]
+pub enum TextInputStyle {
+    /// Single-line input.
+    Short = 1,
+    /// Multi-line input.
+    Paragraph = 2,
+}
+
+impl TryFrom<u8> for TextInputStyle {
+    type Error = String;
+    fn try_from(v: u8) -> Result<Self, Self::Error> {
+        match v {
+            1 => Ok(Self::Short),
+            2 => Ok(Self::Paragraph),
+            _ => Err(format!("unknown text input style: {v}")),
+        }
+    }
+}
+
+impl From<TextInputStyle> for u8 {
+    fn from(s: TextInputStyle) -> u8 {
+        s as u8
+    }
+}
+
+/// A text input component for use inside modal dialogs.
+///
+/// Text inputs must be placed inside an [`ActionRow`].
+///
+/// ```rust,ignore
+/// let row = ActionRow::new().text_input(
+///     TextInput::short("name", "Your name")
+///         .placeholder("John Doe")
+///         .required(),
+/// );
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TextInput {
+    /// Always [`ComponentType::TextInput`].
+    #[serde(rename = "type")]
+    pub kind: ComponentType,
+    pub custom_id: String,
+    pub style: TextInputStyle,
+    pub label: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub min_length: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_length: Option<u16>,
+    #[serde(default)]
+    pub required: bool,
+    /// Pre-filled value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub placeholder: Option<String>,
+}
+
+impl TextInput {
+    /// Create a single-line text input.
+    pub fn short(custom_id: impl Into<String>, label: impl Into<String>) -> Self {
+        Self::new(TextInputStyle::Short, custom_id, label)
+    }
+
+    /// Create a multi-line text input.
+    pub fn paragraph(custom_id: impl Into<String>, label: impl Into<String>) -> Self {
+        Self::new(TextInputStyle::Paragraph, custom_id, label)
+    }
+
+    fn new(
+        style: TextInputStyle,
+        custom_id: impl Into<String>,
+        label: impl Into<String>,
+    ) -> Self {
+        Self {
+            kind: ComponentType::TextInput,
+            custom_id: custom_id.into(),
+            style,
+            label: label.into(),
+            min_length: None,
+            max_length: None,
+            required: false,
+            value: None,
+            placeholder: None,
+        }
+    }
+
+    pub fn min_length(mut self, n: u16) -> Self {
+        self.min_length = Some(n);
+        self
+    }
+
+    pub fn max_length(mut self, n: u16) -> Self {
+        self.max_length = Some(n);
+        self
+    }
+
+    pub fn required(mut self) -> Self {
+        self.required = true;
+        self
+    }
+
+    pub fn value(mut self, value: impl Into<String>) -> Self {
+        self.value = Some(value.into());
+        self
+    }
+
+    pub fn placeholder(mut self, text: impl Into<String>) -> Self {
+        self.placeholder = Some(text.into());
+        self
+    }
+
+    /// Serialize to a JSON [`Value`].
+    pub fn into_value(self) -> Value {
+        serde_json::to_value(self).expect("TextInput serialize never fails")
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Auto-populated select menus
+// ---------------------------------------------------------------------------
+
+/// A default value for auto-populated select menus.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SelectDefaultValue {
+    /// The entity snowflake ID.
+    pub id: Snowflake,
+    /// The type of entity: `"user"`, `"role"`, or `"channel"`.
+    #[serde(rename = "type")]
+    pub kind: String,
+}
+
+impl SelectDefaultValue {
+    pub fn user(id: Snowflake) -> Self {
+        Self { id, kind: "user".into() }
+    }
+    pub fn role(id: Snowflake) -> Self {
+        Self { id, kind: "role".into() }
+    }
+    pub fn channel(id: Snowflake) -> Self {
+        Self { id, kind: "channel".into() }
+    }
+}
+
+/// A user select menu — Discord auto-populates it with guild members.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserSelect {
+    /// Always [`ComponentType::UserSelect`].
+    #[serde(rename = "type")]
+    pub kind: ComponentType,
+    pub custom_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub placeholder: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub min_values: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_values: Option<u8>,
+    /// Pre-selected default values.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub default_values: Vec<SelectDefaultValue>,
+    #[serde(default)]
+    pub disabled: bool,
+}
+
+impl UserSelect {
+    pub fn new(custom_id: impl Into<String>) -> Self {
+        Self {
+            kind: ComponentType::UserSelect,
+            custom_id: custom_id.into(),
+            placeholder: None,
+            min_values: None,
+            max_values: None,
+            default_values: Vec::new(),
+            disabled: false,
+        }
+    }
+
+    pub fn placeholder(mut self, text: impl Into<String>) -> Self {
+        self.placeholder = Some(text.into());
+        self
+    }
+
+    pub fn min_values(mut self, n: u8) -> Self {
+        self.min_values = Some(n);
+        self
+    }
+
+    pub fn max_values(mut self, n: u8) -> Self {
+        self.max_values = Some(n);
+        self
+    }
+
+    /// Serialize to a JSON [`Value`].
+    pub fn into_value(self) -> Value {
+        serde_json::to_value(self).expect("UserSelect serialize never fails")
+    }
+}
+
+/// A role select menu — Discord auto-populates it with guild roles.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RoleSelect {
+    /// Always [`ComponentType::RoleSelect`].
+    #[serde(rename = "type")]
+    pub kind: ComponentType,
+    pub custom_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub placeholder: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub min_values: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_values: Option<u8>,
+    /// Pre-selected default values.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub default_values: Vec<SelectDefaultValue>,
+    #[serde(default)]
+    pub disabled: bool,
+}
+
+impl RoleSelect {
+    pub fn new(custom_id: impl Into<String>) -> Self {
+        Self {
+            kind: ComponentType::RoleSelect,
+            custom_id: custom_id.into(),
+            placeholder: None,
+            min_values: None,
+            max_values: None,
+            default_values: Vec::new(),
+            disabled: false,
+        }
+    }
+
+    pub fn placeholder(mut self, text: impl Into<String>) -> Self {
+        self.placeholder = Some(text.into());
+        self
+    }
+
+    pub fn min_values(mut self, n: u8) -> Self {
+        self.min_values = Some(n);
+        self
+    }
+
+    pub fn max_values(mut self, n: u8) -> Self {
+        self.max_values = Some(n);
+        self
+    }
+
+    /// Serialize to a JSON [`Value`].
+    pub fn into_value(self) -> Value {
+        serde_json::to_value(self).expect("RoleSelect serialize never fails")
+    }
+}
+
+/// A mentionable select menu — shows both users and roles.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MentionableSelect {
+    /// Always [`ComponentType::MentionableSelect`].
+    #[serde(rename = "type")]
+    pub kind: ComponentType,
+    pub custom_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub placeholder: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub min_values: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_values: Option<u8>,
+    /// Pre-selected default values.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub default_values: Vec<SelectDefaultValue>,
+    #[serde(default)]
+    pub disabled: bool,
+}
+
+impl MentionableSelect {
+    pub fn new(custom_id: impl Into<String>) -> Self {
+        Self {
+            kind: ComponentType::MentionableSelect,
+            custom_id: custom_id.into(),
+            placeholder: None,
+            min_values: None,
+            max_values: None,
+            default_values: Vec::new(),
+            disabled: false,
+        }
+    }
+
+    pub fn placeholder(mut self, text: impl Into<String>) -> Self {
+        self.placeholder = Some(text.into());
+        self
+    }
+
+    pub fn min_values(mut self, n: u8) -> Self {
+        self.min_values = Some(n);
+        self
+    }
+
+    pub fn max_values(mut self, n: u8) -> Self {
+        self.max_values = Some(n);
+        self
+    }
+
+    /// Serialize to a JSON [`Value`].
+    pub fn into_value(self) -> Value {
+        serde_json::to_value(self).expect("MentionableSelect serialize never fails")
+    }
+}
+
+/// A channel select menu — Discord auto-populates it with guild channels.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChannelSelect {
+    /// Always [`ComponentType::ChannelSelect`].
+    #[serde(rename = "type")]
+    pub kind: ComponentType,
+    pub custom_id: String,
+    /// Restrict to specific channel types (e.g. `[0]` for text channels only).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub channel_types: Vec<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub placeholder: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub min_values: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_values: Option<u8>,
+    /// Pre-selected default values.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub default_values: Vec<SelectDefaultValue>,
+    #[serde(default)]
+    pub disabled: bool,
+}
+
+impl ChannelSelect {
+    pub fn new(custom_id: impl Into<String>) -> Self {
+        Self {
+            kind: ComponentType::ChannelSelect,
+            custom_id: custom_id.into(),
+            channel_types: Vec::new(),
+            placeholder: None,
+            min_values: None,
+            max_values: None,
+            default_values: Vec::new(),
+            disabled: false,
+        }
+    }
+
+    /// Restrict the menu to specific channel types.
+    pub fn channel_types(mut self, types: impl Into<Vec<u8>>) -> Self {
+        self.channel_types = types.into();
+        self
+    }
+
+    pub fn placeholder(mut self, text: impl Into<String>) -> Self {
+        self.placeholder = Some(text.into());
+        self
+    }
+
+    pub fn min_values(mut self, n: u8) -> Self {
+        self.min_values = Some(n);
+        self
+    }
+
+    pub fn max_values(mut self, n: u8) -> Self {
+        self.max_values = Some(n);
+        self
+    }
+
+    /// Serialize to a JSON [`Value`].
+    pub fn into_value(self) -> Value {
+        serde_json::to_value(self).expect("ChannelSelect serialize never fails")
     }
 }
