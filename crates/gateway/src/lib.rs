@@ -9,5 +9,8 @@ pub mod opcodes;
 /// High-level shard abstraction.
 pub mod shard;
 
-pub use events::DispatchEvent;
+pub use events::{
+    DispatchEvent, ReadyData, MessageDeleteData,
+    VoiceStateUpdateData, VoiceServerUpdateData,
+};
 pub use shard::Shard;

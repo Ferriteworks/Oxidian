@@ -1,7 +1,6 @@
-use oxidian_core::{models::{guild::Guild, message::Message}, snowflake::Snowflake};
+use oxidian_core::{models::{guild::Guild, interaction::Interaction, message::Message}, snowflake::Snowflake};
 use serde::Deserialize;
 
-// ── Raw gateway payload ───────────────────────────────────────────────────────
 
 /// A raw, untyped Discord gateway payload as received over the WebSocket.
 ///
@@ -9,41 +8,27 @@ use serde::Deserialize;
 /// opcode; callers should match on `op` before inspecting the others.
 #[derive(Debug, Deserialize)]
 pub struct GatewayPayload {
-    /// The opcode identifying the type of payload.
     pub op: u8,
-    /// The inner data object; present for most opcodes.
     pub d: Option<serde_json::Value>,
-    /// Sequence number; only present for `DISPATCH` (op 0) events.
     pub s: Option<u64>,
-    /// Event name; only present for `DISPATCH` (op 0) events.
     pub t: Option<String>,
 }
-
-// ── Hello ─────────────────────────────────────────────────────────────────────
 
 /// Data payload for opcode 10 (`Hello`).
 #[derive(Debug, Deserialize)]
 pub struct HelloData {
-    /// Interval in milliseconds at which the client must send heartbeats.
     pub heartbeat_interval: u64,
 }
-
-// ── Ready ─────────────────────────────────────────────────────────────────────
 
 /// Data from the READY dispatch event.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ReadyData {
-    /// Discord gateway protocol version negotiated for this session.
     pub v: u8,
-    /// The bot user object.
     pub user: oxidian_core::models::user::User,
-    /// Opaque session ID required for RESUME.
     pub session_id: String,
-    /// The URL to reconnect/resume on.
     pub resume_gateway_url: String,
 }
 
-// ── Message delete ────────────────────────────────────────────────────────────
 
 /// Data from a MESSAGE_DELETE event.
 #[derive(Debug, Clone, Deserialize)]
@@ -53,10 +38,7 @@ pub struct MessageDeleteData {
     pub guild_id: Option<Snowflake>,
 }
 
-// ── Unavailable guild ─────────────────────────────────────────────────────────
 
-/// A guild that is unavailable due to an outage, or whose ID appeared in a
-/// GUILD_DELETE event.
 #[derive(Debug, Clone, Deserialize)]
 pub struct UnavailableGuild {
     pub id: Snowflake,
@@ -64,32 +46,46 @@ pub struct UnavailableGuild {
     pub unavailable: bool,
 }
 
-// ── DispatchEvent ─────────────────────────────────────────────────────────────
+/// Data from a `VOICE_STATE_UPDATE` dispatch event.
+#[derive(Debug, Clone, Deserialize)]
+pub struct VoiceStateUpdateData {
+    pub guild_id: Option<Snowflake>,
+    pub channel_id: Option<Snowflake>,
+    pub user_id: Snowflake,
+    pub session_id: String,
+    pub deaf: bool,
+    pub mute: bool,
+    pub self_deaf: bool,
+    pub self_mute: bool,
+    #[serde(default)]
+    pub self_stream: Option<bool>,
+    pub self_video: bool,
+    pub suppress: bool,
+}
+
+/// Data from a `VOICE_SERVER_UPDATE` dispatch event.
+#[derive(Debug, Clone, Deserialize)]
+pub struct VoiceServerUpdateData {
+    pub token: String,
+    pub guild_id: Snowflake,
+    pub endpoint: Option<String>,
+}
 
 /// A fully parsed Discord dispatch event (opcode 0).
-///
-/// Each variant corresponds to a `t` value sent by the gateway.
-/// `Unknown` catches any event type that isn't explicitly handled.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum DispatchEvent {
-    /// The bot has successfully identified and is ready.
     Ready(ReadyData),
-    /// A new message was created in a channel.
     MessageCreate(Message),
-    /// A message was deleted.
     MessageDelete(MessageDeleteData),
-    /// The bot joined a guild or a guild became available.
     GuildCreate(Guild),
-    /// A guild was updated.
     GuildUpdate(Guild),
-    /// The bot was removed from a guild, or the guild became unavailable.
     GuildDelete(UnavailableGuild),
-    /// An event type that isn't explicitly handled above.
+    InteractionCreate(Interaction),
+    VoiceStateUpdate(VoiceStateUpdateData),
+    VoiceServerUpdate(VoiceServerUpdateData),
     Unknown {
-        /// The event name (`t` field from the payload).
         name: String,
-        /// The raw event data.
         data: serde_json::Value,
     },
 }

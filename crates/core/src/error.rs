@@ -86,8 +86,6 @@ impl Error {
     }
 }
 
-// ── HTTP ─────────────────────────────────────────────────────────────────────
-
 /// Errors specific to the HTTP / REST layer.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -108,8 +106,6 @@ pub enum HttpError {
     #[error("HTTP request timed out waiting for a response from Discord")]
     Timeout,
 }
-
-// ── Gateway ───────────────────────────────────────────────────────────────────
 
 /// Errors specific to the WebSocket gateway layer.
 #[derive(Debug, thiserror::Error)]
@@ -140,8 +136,6 @@ pub enum GatewayError {
     UnknownEvent(String),
 }
 
-// ── Voice ─────────────────────────────────────────────────────────────────────
-
 /// Errors specific to the voice layer (including DAVE E2EE).
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -162,8 +156,6 @@ pub enum VoiceError {
     #[error("voice session was terminated by Discord or expired; re-connect required")]
     SessionEnded,
 }
-
-// ── Convenience alias ─────────────────────────────────────────────────────────
 
 /// A [`Result`] type that defaults to [`Error`] as the error variant.
 pub type Result<T, E = Error> = std::result::Result<T, E>;

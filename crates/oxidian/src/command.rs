@@ -10,8 +10,6 @@ pub type BoxFuture = Pin<Box<dyn Future<Output = Result<()>> + Send>>;
 /// A type-erased, cheaply cloneable command handler function.
 pub type CommandFn = Arc<dyn Fn(Context, Message, Vec<String>) -> BoxFuture + Send + Sync>;
 
-// ── Command ───────────────────────────────────────────────────────────────────
-
 /// A self-contained command definition — a name paired with its handler.
 ///
 /// Create one with [`Command::new`] and register it on the bot with
@@ -50,8 +48,6 @@ impl Command {
         Self { name: name.into(), handler }
     }
 }
-
-// ── CommandRegistry ───────────────────────────────────────────────────────────
 
 /// Registry mapping command names to their handler functions.
 ///

@@ -11,3 +11,5 @@ tokio             = { workspace = true }
 thiserror         = { workspace = true }
 tokio-tungstenite = { workspace = true }
 futures-util      = { workspace = true }
+tracing           = { workspace = true }
+aes-gcm           = "0.10"

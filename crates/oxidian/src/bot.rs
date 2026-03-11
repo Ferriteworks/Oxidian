@@ -12,32 +12,11 @@ use oxidian_http::HttpClient;
 
 use crate::{
     command::{Command, CommandRegistry},
-    context::Context,
+    context::{Context, GatewayHandle},
     handler::{DefaultHandler, EventHandler},
 };
 
-// ── Bot ───────────────────────────────────────────────────────────────────────
-
-/// The top-level Discord bot, combining the gateway shard, HTTP client,
-/// prefix command dispatcher, and event handler.
-///
-/// Create one with [`Bot::builder`] and call [`Bot::start`] to connect.
-///
-/// # Example
-///
-/// ```rust,ignore
-/// Bot::builder(token)
-///     .intents(INTENTS)
-///     .prefix("!")
-///     .handler(MyHandler)
-///     .command("ping", |ctx, msg, _args| async move {
-///         ctx.reply(&msg, "pong!").await?;
-///         Ok(())
-///     })
-///     .build()
-///     .start()
-///     .await?;
-/// ```
+/// The top-level Discord bot.
 pub struct Bot {
     token: String,
     intents: u64,
@@ -56,10 +35,12 @@ impl Bot {
     /// closes or the retry limit is exceeded.
     pub async fn start(self) -> Result<()> {
         let http = Arc::new(HttpClient::new(&self.token)?);
-        let ctx = Context::new(Arc::clone(&http));
 
         let (event_tx, mut event_rx) = mpsc::channel::<DispatchEvent>(256);
         let shard = Shard::new(self.token.clone(), self.intents, event_tx);
+
+        let gateway_handle = GatewayHandle::new(shard.gateway_sender());
+        let ctx = Context::new(Arc::clone(&http), gateway_handle);
 
         // Drive the gateway on a separate task.
         tokio::spawn(async move {
@@ -85,8 +66,6 @@ impl Bot {
         Ok(())
     }
 }
-
-// ── BotBuilder ────────────────────────────────────────────────────────────────
 
 /// Builder for [`Bot`].  Obtain one via [`Bot::builder`].
 pub struct BotBuilder {
@@ -170,8 +149,6 @@ impl BotBuilder {
     }
 }
 
-// ── Dispatch ──────────────────────────────────────────────────────────────────
-
 async fn dispatch(
     event: DispatchEvent,
     ctx: Context,
@@ -215,6 +192,15 @@ async fn dispatch(
         }
         DispatchEvent::GuildUpdate(guild) => {
             handler.guild_update(ctx, guild).await;
+        }
+        DispatchEvent::InteractionCreate(interaction) => {
+            handler.interaction(ctx, interaction).await;
+        }
+        DispatchEvent::VoiceStateUpdate(state) => {
+            handler.voice_state_update(ctx, state).await;
+        }
+        DispatchEvent::VoiceServerUpdate(server) => {
+            handler.voice_server_update(ctx, server).await;
         }
         other => {
             handler.raw_event(ctx, other).await;

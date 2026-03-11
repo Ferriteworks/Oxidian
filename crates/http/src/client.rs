@@ -29,16 +29,12 @@ pub const BASE_URL: &str = "https://discord.com/api/v10";
 const USER_AGENT_VALUE: &str =
     concat!("DiscordBot (https://github.com/KilledInAction/Oxidian, ", env!("CARGO_PKG_VERSION"), ")");
 
-// ── ApiError ──────────────────────────────────────────────────────────────
-
 /// JSON structure returned by Discord on 4xx errors.
 #[derive(Debug, serde::Deserialize)]
 struct DiscordApiError {
     code: u32,
     message: String,
 }
-
-// ── HttpClient ───────────────────────────────────────────────────────────
 
 /// Async HTTP client for the Discord REST API.
 ///
@@ -80,7 +76,6 @@ impl HttpClient {
         })
     }
 
-    // ── Core request method ───────────────────────────────────────────────
 
     /// Send a request for the given [`Route`], optionally with a JSON body,
     /// and deserialize the response into `T`.
@@ -163,14 +158,17 @@ impl HttpClient {
             let response_text = resp.text().await
                 .map_err(|e| HttpError::Decode(e.to_string()))?;
 
-            return serde_json::from_str::<T>(&response_text)
+            // 204 No Content and similar empty-body successes — try deserialising
+            // from JSON `null` so that `Result<()>` callers succeed.
+            let effective = if response_text.is_empty() { "null" } else { &response_text };
+
+            return serde_json::from_str::<T>(effective)
                 .map_err(|e| HttpError::Decode(format!("{e} — body: {response_text}")).into());
         }
 
         unreachable!()
     }
 
-    // ── Convenience route helpers ───────────────────────────────────────────
 
     /// Fetch the current bot user (`GET /users/@me`).
     pub async fn get_current_user(&self) -> Result<Value, OxidianError> {
@@ -227,7 +225,87 @@ impl HttpClient {
         self.request(Route::GetGatewayBot, None).await
     }
 
-    // ── Internal helpers ──────────────────────────────────────────────────
+
+    /// Fetch all global commands for the application.
+    pub async fn get_global_commands(
+        &self,
+        application_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::GetGlobalCommands { application_id }, None).await
+    }
+
+    /// Register (or overwrite) a global command.
+    ///
+    /// `body` is a serialised [`ApplicationCommand`](oxidian_interactions::command::ApplicationCommand).
+    pub async fn create_global_command(
+        &self,
+        application_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::CreateGlobalCommand { application_id }, Some(body)).await
+    }
+
+    /// Delete a global command by ID.
+    pub async fn delete_global_command(
+        &self,
+        application_id: oxidian_core::snowflake::Snowflake,
+        command_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<(), OxidianError> {
+        self.request(Route::DeleteGlobalCommand { application_id, command_id }, None).await
+    }
+
+    /// Fetch all guild-scoped commands for the application.
+    pub async fn get_guild_commands(
+        &self,
+        application_id: oxidian_core::snowflake::Snowflake,
+        guild_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::GetGuildCommands { application_id, guild_id }, None).await
+    }
+
+    /// Register (or overwrite) a guild-scoped command.
+    pub async fn create_guild_command(
+        &self,
+        application_id: oxidian_core::snowflake::Snowflake,
+        guild_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::CreateGuildCommand { application_id, guild_id }, Some(body)).await
+    }
+
+    /// Delete a guild-scoped command by ID.
+    pub async fn delete_guild_command(
+        &self,
+        application_id: oxidian_core::snowflake::Snowflake,
+        guild_id: oxidian_core::snowflake::Snowflake,
+        command_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<(), OxidianError> {
+        self.request(
+            Route::DeleteGuildCommand { application_id, guild_id, command_id },
+            None,
+        ).await
+    }
+
+    /// Respond to a Discord interaction.
+    ///
+    /// `body` must be a serialised
+    /// [`InteractionResponse`](oxidian_core::models::interaction::InteractionResponse).
+    /// Returns `()` because Discord replies with `204 No Content`.
+    pub async fn create_interaction_response(
+        &self,
+        interaction_id: oxidian_core::snowflake::Snowflake,
+        interaction_token: &str,
+        body: Value,
+    ) -> Result<(), OxidianError> {
+        self.request(
+            Route::CreateInteractionResponse {
+                interaction_id,
+                interaction_token: interaction_token.to_owned(),
+            },
+            Some(body),
+        ).await
+    }
+
 
     fn build_request(
         &self,

@@ -1,17 +1,17 @@
 use futures_util::{SinkExt, StreamExt};
-use tokio::sync::{mpsc, watch};
+use tokio::sync::{broadcast, mpsc, watch};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{debug, error, info, warn};
 
 use oxidian_core::{
     error::{Error as OxidianError, GatewayError},
-    models::{guild::Guild, message::Message as DiscordMessage},
+    models::{guild::Guild, interaction::Interaction, message::Message as DiscordMessage},
 };
 
 use crate::{
     events::{
         DispatchEvent, GatewayPayload, HelloData, MessageDeleteData, ReadyData,
-        UnavailableGuild,
+        UnavailableGuild, VoiceServerUpdateData, VoiceStateUpdateData,
     },
     heartbeat::{self, HeartbeatMessage, WsMessageTx},
     opcodes::Opcode,
@@ -42,6 +42,7 @@ pub async fn connect(
     token: &str,
     intents: u64,
     event_tx: mpsc::Sender<DispatchEvent>,
+    mut outbound_rx: broadcast::Receiver<serde_json::Value>,
 ) -> Result<(), OxidianError> {
     info!(url = GATEWAY_URL, "connecting to Discord gateway");
 
@@ -54,24 +55,39 @@ pub async fn connect(
     // Sequence number — written by the event loop, read by the heartbeat task.
     let (seq_tx, seq_rx) = watch::channel::<Option<u64>>(None);
 
-    // ── Hello ──────────────────────────────────────────────────────────────────
+
     let hello = recv_hello(&mut stream).await?;
     info!(interval_ms = hello.heartbeat_interval, "received Hello from gateway");
 
-    // ── Write task ─────────────────────────────────────────────────────────────
-    // All outgoing messages are funneled through this channel so the heartbeat
-    // task and the event loop can both write without sharing the sink directly.
+    // all outgoing messages are funneled through this channel
     let (write_tx, write_rx) = mpsc::channel::<Message>(64);
     tokio::spawn(write_loop(sink, write_rx));
 
-    // ── Identify ───────────────────────────────────────────────────────────────
+    // forward broadcast messages (e.g. VoiceStateUpdate) to the write channel
+    {
+        let write_tx_out = write_tx.clone();
+        tokio::spawn(async move {
+            loop {
+                match outbound_rx.recv().await {
+                    Ok(value) => {
+                        if let Ok(text) = serde_json::to_string(&value) {
+                            if write_tx_out.send(Message::Text(text.into())).await.is_err() {
+                                break;
+                            }
+                        }
+                    }
+                    Err(broadcast::error::RecvError::Lagged(_)) => continue,
+                    Err(broadcast::error::RecvError::Closed) => break,
+                }
+            }
+        });
+    }
+
     send_identify(&write_tx, token, intents).await?;
     info!("sent Identify");
 
-    // ── Heartbeat task ─────────────────────────────────────────────────────────
     let hb_tx = heartbeat::spawn(hello.heartbeat_interval, seq_rx, write_tx.clone());
 
-    // ── Event loop ─────────────────────────────────────────────────────────────
     while let Some(result) = stream.next().await {
         let msg = match result {
             Ok(m) => m,
@@ -156,10 +172,7 @@ pub async fn connect(
     Ok(())
 }
 
-// ── Write task ────────────────────────────────────────────────────────────────
 
-/// Drains the write channel, forwarding each message to the WsSink.
-/// Runs as a background task that exclusively owns the sink.
 async fn write_loop(mut sink: WsSink, mut rx: mpsc::Receiver<Message>) {
     while let Some(msg) = rx.recv().await {
         if sink.send(msg).await.is_err() {
@@ -168,9 +181,7 @@ async fn write_loop(mut sink: WsSink, mut rx: mpsc::Receiver<Message>) {
     }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
-/// Receive messages from the stream until a Hello (op 10) payload arrives.
 async fn recv_hello(stream: &mut WsStream) -> Result<HelloData, OxidianError> {
     while let Some(msg) = stream.next().await {
         let text = match msg {
@@ -297,6 +308,36 @@ fn parse_dispatch(payload: GatewayPayload) -> Option<DispatchEvent> {
             Err(e) => {
                 warn!(error = %e, "failed to parse GUILD_DELETE payload");
                 None
+            }
+        },
+        "INTERACTION_CREATE" => match serde_json::from_value::<Interaction>(data) {
+            Ok(interaction) => {
+                debug!(id = %interaction.id, "INTERACTION_CREATE");
+                Some(DispatchEvent::InteractionCreate(interaction))
+            }
+            Err(e) => {
+                warn!(error = %e, "failed to parse INTERACTION_CREATE payload");
+                None
+            }
+        },
+        "VOICE_STATE_UPDATE" => {
+            debug!(raw = %data, "raw VOICE_STATE_UPDATE");
+            match serde_json::from_value::<VoiceStateUpdateData>(data) {
+                Ok(state) => Some(DispatchEvent::VoiceStateUpdate(state)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse VOICE_STATE_UPDATE payload");
+                    None
+                }
+            }
+        },
+        "VOICE_SERVER_UPDATE" => {
+            debug!(raw = %data, "raw VOICE_SERVER_UPDATE");
+            match serde_json::from_value::<VoiceServerUpdateData>(data) {
+                Ok(server) => Some(DispatchEvent::VoiceServerUpdate(server)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse VOICE_SERVER_UPDATE payload");
+                    None
+                }
             }
         },
         other => {

@@ -16,6 +16,9 @@ pub use oxidian_http::HttpClient;
 /// Re-export [`Snowflake`] at crate root.
 pub use oxidian_core::snowflake::Snowflake;
 
+/// Re-export [`VoiceConnection`] at crate root.
+pub use oxidian_voice::VoiceConnection;
+
 /// Request context passed to event handlers and command callbacks.
 pub mod context;
 /// [`EventHandler`] trait for receiving gateway events.
@@ -27,7 +30,7 @@ pub mod bot;
 
 pub use bot::{Bot, BotBuilder};
 pub use command::Command;
-pub use context::Context;
+pub use context::{Context, GatewayHandle};
 pub use handler::EventHandler;
 
 /// Initialise Oxidian: installs the rustls crypto provider (ring) and sets up

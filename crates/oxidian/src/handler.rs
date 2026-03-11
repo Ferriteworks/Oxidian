@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
-use oxidian_core::models::{guild::Guild, message::Message};
-use oxidian_gateway::events::{DispatchEvent, MessageDeleteData, ReadyData};
+use oxidian_core::models::{guild::Guild, interaction::Interaction, message::Message};
+use oxidian_gateway::events::{DispatchEvent, MessageDeleteData, ReadyData, VoiceServerUpdateData, VoiceStateUpdateData};
 
 use crate::context::Context;
 
@@ -48,6 +48,34 @@ pub trait EventHandler: Send + Sync + 'static {
 
     /// Called when a guild's settings are updated.
     async fn guild_update(&self, _ctx: Context, _guild: Guild) {}
+
+    /// Called when a user invokes a slash command, clicks a component, or
+    /// submits a modal.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// async fn interaction(&self, ctx: Context, interaction: Interaction) {
+    ///     if let Some(data) = interaction.command_data() {
+    ///         if data.name == "ping" {
+    ///             ctx.respond(&interaction, InteractionResponse::message("Pong!"))
+    ///                 .await.ok();
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    async fn interaction(&self, _ctx: Context, _interaction: Interaction) {}
+
+    /// Called when a user's voice state changes in any guild the bot is in.
+    async fn voice_state_update(&self, _ctx: Context, _state: VoiceStateUpdateData) {}
+
+    /// Called when Discord provides voice server connection details.
+    ///
+    /// Typically triggered after calling [`GatewayHandle::join_voice`]. Use
+    /// the `endpoint` and `token` (together with the `session_id` from the
+    /// matching [`Self::voice_state_update`] event) to connect via
+    /// [`VoiceConnection::connect`](oxidian_voice::connection::VoiceConnection::connect).
+    async fn voice_server_update(&self, _ctx: Context, _server: VoiceServerUpdateData) {}
 
     /// Called for every event that doesn't have a dedicated handler method.
     /// Useful for logging or handling less-common event types.

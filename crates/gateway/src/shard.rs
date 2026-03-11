@@ -1,4 +1,6 @@
-use tokio::sync::mpsc;
+use std::sync::Arc;
+
+use tokio::sync::{broadcast, mpsc};
 use tracing::{error, info, warn};
 
 use oxidian_core::error::{Error as OxidianError, GatewayError};
@@ -6,29 +8,33 @@ use oxidian_core::error::{Error as OxidianError, GatewayError};
 use crate::{connection, events::DispatchEvent};
 
 /// A single Discord gateway shard.
-///
-/// Each shard maintains one WebSocket connection to the Discord gateway.
-/// Create one with [`Shard::new`] and call [`Shard::start`] to connect.
-/// Parsed dispatch events are forwarded to the caller via the `event_tx` channel.
 pub struct Shard {
     token: String,
     intents: u64,
-    /// Channel sender — parsed events are sent here for the caller to handle.
     event_tx: mpsc::Sender<DispatchEvent>,
+    outbound_tx: Arc<broadcast::Sender<serde_json::Value>>,
 }
 
 impl Shard {
     /// Create a new `Shard`.
-    ///
-    /// All parsed gateway dispatch events will be sent on `event_tx`.
-    /// The receiver side is typically owned by a `Bot` which dispatches them
-    /// to user-defined handlers.
     pub fn new(
         token: impl Into<String>,
         intents: u64,
         event_tx: mpsc::Sender<DispatchEvent>,
     ) -> Self {
-        Self { token: token.into(), intents, event_tx }
+        let (outbound_tx, _) = broadcast::channel(64);
+        Self {
+            token: token.into(),
+            intents,
+            event_tx,
+            outbound_tx: Arc::new(outbound_tx),
+        }
+    }
+
+    /// Return a clone of the broadcast sender used for outbound gateway
+    /// payloads.  Messages sent when no connection is active are discarded.
+    pub fn gateway_sender(&self) -> Arc<broadcast::Sender<serde_json::Value>> {
+        Arc::clone(&self.outbound_tx)
     }
 
     /// Connect to the Discord gateway and drive the event loop.
@@ -42,7 +48,16 @@ impl Shard {
         loop {
             info!(attempt = attempts + 1, "starting gateway session");
 
-            match connection::connect(&self.token, self.intents, self.event_tx.clone()).await {
+            // Subscribe before each connection so the new socket drains
+            // outbound messages sent during the lifetime of that session.
+            let outbound_rx = self.outbound_tx.subscribe();
+
+            match connection::connect(
+                &self.token,
+                self.intents,
+                self.event_tx.clone(),
+                outbound_rx,
+            ).await {
                 Ok(()) => {
                     info!("gateway connection closed cleanly");
                     return Ok(());

@@ -32,7 +32,6 @@ pub enum Method {
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum Route {
-    // ── Channels ────────────────────────────────────────────────────────────
     /// `GET /channels/{channel.id}`
     GetChannel {
         /// The ID of the channel to fetch.
@@ -58,7 +57,6 @@ pub enum Route {
         message_id: Snowflake,
     },
 
-    // ── Guilds ──────────────────────────────────────────────────────────────
     /// `GET /guilds/{guild.id}`
     GetGuild {
         /// The ID of the guild to fetch.
@@ -72,7 +70,6 @@ pub enum Route {
         user_id: Snowflake,
     },
 
-    // ── Users ───────────────────────────────────────────────────────────────
     /// `GET /users/@me`
     GetCurrentUser,
     /// `GET /users/{user.id}`
@@ -81,9 +78,43 @@ pub enum Route {
         user_id: Snowflake,
     },
 
-    // ── Gateway ─────────────────────────────────────────────────────────────
     /// `GET /gateway/bot` — returns the recommended shard count and WSS URL.
     GetGatewayBot,
+
+    /// `GET /applications/{application_id}/commands`
+    GetGlobalCommands {
+        application_id: Snowflake,
+    },
+    /// `POST /applications/{application_id}/commands`
+    CreateGlobalCommand {
+        application_id: Snowflake,
+    },
+    /// `DELETE /applications/{application_id}/commands/{command_id}`
+    DeleteGlobalCommand {
+        application_id: Snowflake,
+        command_id: Snowflake,
+    },
+    /// `GET /applications/{application_id}/guilds/{guild_id}/commands`
+    GetGuildCommands {
+        application_id: Snowflake,
+        guild_id: Snowflake,
+    },
+    /// `POST /applications/{application_id}/guilds/{guild_id}/commands`
+    CreateGuildCommand {
+        application_id: Snowflake,
+        guild_id: Snowflake,
+    },
+    /// `DELETE /applications/{application_id}/guilds/{guild_id}/commands/{command_id}`
+    DeleteGuildCommand {
+        application_id: Snowflake,
+        guild_id: Snowflake,
+        command_id: Snowflake,
+    },
+    /// `POST /interactions/{interaction_id}/{interaction_token}/callback`
+    CreateInteractionResponse {
+        interaction_id: Snowflake,
+        interaction_token: String,
+    },
 }
 
 impl Route {
@@ -96,10 +127,18 @@ impl Route {
             | Self::GetGuildMember { .. }
             | Self::GetCurrentUser
             | Self::GetUser { .. }
-            | Self::GetGatewayBot => Method::Get,
+            | Self::GetGatewayBot
+            | Self::GetGlobalCommands { .. }
+            | Self::GetGuildCommands { .. } => Method::Get,
 
-            Self::CreateMessage { .. } => Method::Post,
-            Self::DeleteMessage { .. } => Method::Delete,
+            Self::CreateMessage { .. }
+            | Self::CreateGlobalCommand { .. }
+            | Self::CreateGuildCommand { .. }
+            | Self::CreateInteractionResponse { .. } => Method::Post,
+
+            Self::DeleteMessage { .. }
+            | Self::DeleteGlobalCommand { .. }
+            | Self::DeleteGuildCommand { .. } => Method::Delete,
         }
     }
 
@@ -119,6 +158,20 @@ impl Route {
             Self::GetCurrentUser                 => format!("{base}/users/@me"),
             Self::GetUser { user_id }            => format!("{base}/users/{user_id}"),
             Self::GetGatewayBot                  => format!("{base}/gateway/bot"),
+            Self::GetGlobalCommands { application_id } =>
+                format!("{base}/applications/{application_id}/commands"),
+            Self::CreateGlobalCommand { application_id } =>
+                format!("{base}/applications/{application_id}/commands"),
+            Self::DeleteGlobalCommand { application_id, command_id } =>
+                format!("{base}/applications/{application_id}/commands/{command_id}"),
+            Self::GetGuildCommands { application_id, guild_id } =>
+                format!("{base}/applications/{application_id}/guilds/{guild_id}/commands"),
+            Self::CreateGuildCommand { application_id, guild_id } =>
+                format!("{base}/applications/{application_id}/guilds/{guild_id}/commands"),
+            Self::DeleteGuildCommand { application_id, guild_id, command_id } =>
+                format!("{base}/applications/{application_id}/guilds/{guild_id}/commands/{command_id}"),
+            Self::CreateInteractionResponse { interaction_id, interaction_token } =>
+                format!("{base}/interactions/{interaction_id}/{interaction_token}/callback"),
         }
     }
 
@@ -143,6 +196,18 @@ impl Route {
             Self::GetCurrentUser
             | Self::GetUser { .. }
             | Self::GetGatewayBot => "global".to_owned(),
+
+            Self::GetGlobalCommands { application_id }
+            | Self::CreateGlobalCommand { application_id }
+            | Self::DeleteGlobalCommand { application_id, .. } =>
+                format!("application:{application_id}:commands"),
+
+            Self::GetGuildCommands { application_id, guild_id }
+            | Self::CreateGuildCommand { application_id, guild_id }
+            | Self::DeleteGuildCommand { application_id, guild_id, .. } =>
+                format!("application:{application_id}:guild:{guild_id}:commands"),
+
+            Self::CreateInteractionResponse { .. } => "interaction".to_owned(),
         }
     }
 }

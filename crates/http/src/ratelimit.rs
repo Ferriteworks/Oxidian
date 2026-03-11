@@ -26,8 +26,6 @@ use tokio::sync::Mutex;
 use tokio::time::sleep;
 use tracing::{debug, warn};
 
-// ── Bucket ────────────────────────────────────────────────────────────────────
-
 /// State of a single Discord rate-limit bucket.
 #[derive(Debug)]
 pub struct Bucket {
@@ -55,8 +53,6 @@ impl Bucket {
         }
     }
 }
-
-// ── Rate-limit headers ────────────────────────────────────────────────────────
 
 /// Parsed Discord rate-limit headers from an HTTP response.
 #[derive(Debug, Default)]
@@ -93,8 +89,6 @@ impl RateLimitHeaders {
         }
     }
 }
-
-// ── RateLimiter ───────────────────────────────────────────────────────────────
 
 /// Shared, async-safe rate-limit state for all Discord buckets.
 ///

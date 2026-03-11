@@ -8,24 +8,14 @@ use tracing::{debug, warn};
 
 use crate::opcodes::Opcode;
 
-/// Sender half of the write channel — used to push raw WebSocket messages
-/// to the write task that owns the WsSink.
 pub type WsMessageTx = mpsc::Sender<tokio_tungstenite::tungstenite::Message>;
 
-/// Message type sent over the heartbeat control channel.
 #[derive(Debug)]
 pub enum HeartbeatMessage {
-    /// The gateway acknowledged our last heartbeat (opcode 11).
     Ack,
-    /// The heartbeat task should stop cleanly.
     Stop,
 }
 
-/// Spawn the heartbeat loop as an independent Tokio task.
-///
-/// Messages are written to the gateway via `write_tx`, a channel whose
-/// receiver is owned by the write task.  The returned sender lets the event
-/// loop send `Ack` / `Stop` control signals.
 pub fn spawn(
     interval_ms: u64,
     seq_rx: watch::Receiver<Option<u64>>,
