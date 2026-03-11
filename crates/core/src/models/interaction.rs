@@ -105,18 +105,18 @@ impl TryFrom<u8> for CommandOptionType {
     type Error = String;
     fn try_from(v: u8) -> Result<Self, Self::Error> {
         match v {
-            1  => Ok(Self::SubCommand),
-            2  => Ok(Self::SubCommandGroup),
-            3  => Ok(Self::String),
-            4  => Ok(Self::Integer),
-            5  => Ok(Self::Boolean),
-            6  => Ok(Self::User),
-            7  => Ok(Self::Channel),
-            8  => Ok(Self::Role),
-            9  => Ok(Self::Mentionable),
+            1 => Ok(Self::SubCommand),
+            2 => Ok(Self::SubCommandGroup),
+            3 => Ok(Self::String),
+            4 => Ok(Self::Integer),
+            5 => Ok(Self::Boolean),
+            6 => Ok(Self::User),
+            7 => Ok(Self::Channel),
+            8 => Ok(Self::Role),
+            9 => Ok(Self::Mentionable),
             10 => Ok(Self::Number),
             11 => Ok(Self::Attachment),
-            _  => Err(format!("unknown command option type: {v}")),
+            _ => Err(format!("unknown command option type: {v}")),
         }
     }
 }
@@ -344,7 +344,10 @@ pub struct InteractionCallbackData {
 impl InteractionCallbackData {
     /// A simple text response.
     pub fn message(content: impl Into<String>) -> Self {
-        Self { content: Some(content.into()), ..Default::default() }
+        Self {
+            content: Some(content.into()),
+            ..Default::default()
+        }
     }
 
     /// An ephemeral text response visible only to the invoking user.

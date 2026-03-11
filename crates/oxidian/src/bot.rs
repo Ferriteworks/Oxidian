@@ -3,11 +3,7 @@ use std::{future::Future, sync::Arc};
 use tokio::sync::mpsc;
 use tracing::{debug, error};
 
-use oxidian_core::{
-    error::Result,
-    intents::Intents,
-    models::message::Message,
-};
+use oxidian_core::{error::Result, intents::Intents, models::message::Message};
 use oxidian_gateway::{events::DispatchEvent, Shard};
 use oxidian_http::HttpClient;
 
@@ -60,7 +56,9 @@ impl Bot {
             let prefix = self.prefix.clone();
 
             tokio::spawn(async move {
-                if let Err(e) = dispatch(event, ctx, handler, commands, modules, prefix).await {
+                if let Err(e) =
+                    dispatch(event, ctx, handler, commands, modules, prefix).await
+                {
                     error!(error = %e, "event dispatch error");
                 }
             });
@@ -169,9 +167,7 @@ impl BotBuilder {
             token: self.token,
             intents: self.intents,
             prefix: self.prefix,
-            handler: self
-                .handler
-                .unwrap_or_else(|| Arc::new(DefaultHandler)),
+            handler: self.handler.unwrap_or_else(|| Arc::new(DefaultHandler)),
             commands: Arc::new(self.commands),
             modules: Arc::new(self.modules),
         }

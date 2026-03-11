@@ -21,7 +21,6 @@ use oxidian_core::{
     snowflake::Snowflake,
 };
 
-
 type WsSink = futures_util::stream::SplitSink<
     tokio_tungstenite::WebSocketStream<
         tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
@@ -35,14 +34,12 @@ type WsStream = futures_util::stream::SplitStream<
     >,
 >;
 
-
 struct VoiceReady {
     ssrc: u32,
     ip: String,
     port: u16,
     modes: Vec<String>,
 }
-
 
 /// A live Discord voice connection.
 ///
@@ -87,9 +84,8 @@ impl VoiceConnection {
 
         // 1. Receive Hello (op 8) → heartbeat interval.
         let hello = recv_op(&mut stream, 8).await?;
-        let interval_ms = hello["heartbeat_interval"]
-            .as_f64()
-            .unwrap_or(30_000.0) as u64;
+        let interval_ms =
+            hello["heartbeat_interval"].as_f64().unwrap_or(30_000.0) as u64;
         debug!(interval_ms, "received voice Hello");
 
         // 2. Send Identify (op 0) — must be the first message we send.
@@ -113,17 +109,22 @@ impl VoiceConnection {
         //    (tokio::time::interval fires the first tick immediately).
         //    Voice gateway v8 heartbeats: {"op":3,"d":{"t":timestamp,"seq_ack":N}}
         let seq_ack = Arc::new(AtomicI64::new(-1));
-        let hb_stop = spawn_heartbeat(interval_ms, write_tx.clone(), Arc::clone(&seq_ack));
+        let hb_stop =
+            spawn_heartbeat(interval_ms, write_tx.clone(), Arc::clone(&seq_ack));
 
         // 4. Receive Ready (op 2).
         let ready_data = recv_op(&mut stream, 2).await?;
         let ready = VoiceReady {
             ssrc: ready_data["ssrc"].as_u64().unwrap_or(0) as u32,
-            ip:   ready_data["ip"].as_str().unwrap_or("").to_owned(),
+            ip: ready_data["ip"].as_str().unwrap_or("").to_owned(),
             port: ready_data["port"].as_u64().unwrap_or(0) as u16,
             modes: ready_data["modes"]
                 .as_array()
-                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(str::to_owned))
+                        .collect()
+                })
                 .unwrap_or_default(),
         };
         info!(ssrc = ready.ssrc, ip = %ready.ip, port = ready.port, "voice Ready");
@@ -164,19 +165,25 @@ impl VoiceConnection {
         let session_data = recv_op(&mut stream, 4).await?;
         let secret_key_vec: Vec<u8> = session_data["secret_key"]
             .as_array()
-            .ok_or_else(|| VoiceError::Connection("no secret_key in session description".into()))?
+            .ok_or_else(|| {
+                VoiceError::Connection("no secret_key in session description".into())
+            })?
             .iter()
             .filter_map(|v| v.as_u64().map(|b| b as u8))
             .collect();
 
-        let secret_key: [u8; 32] = secret_key_vec
-            .try_into()
-            .map_err(|_| VoiceError::Connection("secret_key must be 32 bytes".into()))?;
+        let secret_key: [u8; 32] = secret_key_vec.try_into().map_err(|_| {
+            VoiceError::Connection("secret_key must be 32 bytes".into())
+        })?;
 
         info!("voice session established");
 
         // Spawn background event loop (handles HeartbeatAck, seq_ack, DAVE transitions).
-        tokio::spawn(voice_event_loop(stream, write_tx.clone(), Arc::clone(&seq_ack)));
+        tokio::spawn(voice_event_loop(
+            stream,
+            write_tx.clone(),
+            Arc::clone(&seq_ack),
+        ));
 
         Ok(Self {
             guild_id: server_id,
@@ -215,7 +222,7 @@ impl VoiceConnection {
     /// transmission.  Call [`Self::speak`] with `true` before the first call.
     pub async fn send_audio(&self, opus_data: &[u8]) -> Result<(), OxidianError> {
         let seq = self.sequence.fetch_add(1, Ordering::Relaxed) as u16;
-        let ts  = self.timestamp.fetch_add(960, Ordering::Relaxed);  // 20 ms at 48 kHz
+        let ts = self.timestamp.fetch_add(960, Ordering::Relaxed); // 20 ms at 48 kHz
         let nonce = self.nonce_counter.fetch_add(1, Ordering::Relaxed);
 
         let rtp_header = build_rtp_header(seq, ts, self.ssrc);
@@ -236,7 +243,6 @@ impl VoiceConnection {
         Ok(())
     }
 }
-
 
 async fn write_loop(mut sink: WsSink, mut rx: mpsc::Receiver<Message>) {
     while let Some(msg) = rx.recv().await {
@@ -265,7 +271,9 @@ async fn recv_op(
         let msg = tokio::time::timeout(Duration::from_secs(10), stream.next())
             .await
             .map_err(|_| {
-                VoiceError::Connection(format!("timed out waiting for voice op {expected_op}"))
+                VoiceError::Connection(format!(
+                    "timed out waiting for voice op {expected_op}"
+                ))
             })?;
         let msg = match msg {
             Some(m) => m,
@@ -302,7 +310,10 @@ async fn recv_op(
 }
 
 /// Discover our external IP and port via Discord's UDP IP discovery protocol.
-async fn ip_discovery(udp: &UdpSocket, ssrc: u32) -> Result<(String, u16), OxidianError> {
+async fn ip_discovery(
+    udp: &UdpSocket,
+    ssrc: u32,
+) -> Result<(String, u16), OxidianError> {
     // Request packet: type(2) | length(2) | ssrc(4) | 66 zero bytes = 74 bytes.
     let mut packet = [0u8; 74];
     packet[0] = 0x00;
@@ -390,7 +401,10 @@ fn encrypt_audio(
     let ciphertext = cipher
         .encrypt(
             nonce_val,
-            Payload { msg: opus_data, aad: rtp_header },
+            Payload {
+                msg: opus_data,
+                aad: rtp_header,
+            },
         )
         .map_err(|_| VoiceError::Connection("AES-256-GCM encryption failed".into()))?;
 
@@ -402,7 +416,6 @@ fn encrypt_audio(
 
     Ok(packet)
 }
-
 
 fn spawn_heartbeat(
     interval_ms: u64,
@@ -440,7 +453,6 @@ fn spawn_heartbeat(
     stop_tx
 }
 
-
 async fn voice_event_loop(
     mut stream: WsStream,
     write_tx: mpsc::Sender<Message>,
@@ -462,7 +474,10 @@ async fn voice_event_loop(
 
         let payload: serde_json::Value = match serde_json::from_str(&text) {
             Ok(v) => v,
-            Err(e) => { warn!(error = %e, "failed to parse voice payload"); continue; }
+            Err(e) => {
+                warn!(error = %e, "failed to parse voice payload");
+                continue;
+            }
         };
 
         // Update seq_ack from every message (voice gateway v8 protocol).
@@ -478,7 +493,8 @@ async fn voice_event_loop(
             // DAVE_PREPARE_TRANSITION: acknowledge with DAVE_TRANSITION_READY (op 25)
             Some(20) => {
                 let transition_id = payload["d"]["transition_id"].as_u64().unwrap_or(0);
-                let protocol_version = payload["d"]["protocol_version"].as_u64().unwrap_or(1);
+                let protocol_version =
+                    payload["d"]["protocol_version"].as_u64().unwrap_or(1);
                 info!(transition_id, protocol_version, "DAVE prepare transition");
 
                 let ready = serde_json::json!({
@@ -507,4 +523,3 @@ async fn voice_event_loop(
         }
     }
 }
-

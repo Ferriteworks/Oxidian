@@ -6,10 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use oxidian_core::{
-    models::interaction::ApplicationCommandType,
-    snowflake::Snowflake,
-};
+use oxidian_core::{models::interaction::ApplicationCommandType, snowflake::Snowflake};
 
 /// Definition for a **user** context-menu command (right-click a user → Apps).
 #[derive(Debug, Clone, Serialize, Deserialize)]

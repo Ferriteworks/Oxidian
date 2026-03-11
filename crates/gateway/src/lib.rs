@@ -9,15 +9,11 @@ pub mod opcodes;
 /// High-level shard abstraction.
 pub mod shard;
 
-pub use events::{
-    DispatchEvent, ReadyData,
-    MessageDeleteData, MessageDeleteBulkData,
-    ReactionData, ReactionEmoji, ReactionRemoveAllData, ReactionRemoveEmojiData,
-    GuildMemberAddData, GuildMemberRemoveData,
-    GuildBanData,
-    GuildRoleData, GuildRoleDeleteData,
-    TypingStartData,
-    VoiceStateUpdateData, VoiceServerUpdateData,
-};
 pub use connection::SessionState;
+pub use events::{
+    DispatchEvent, GuildBanData, GuildMemberAddData, GuildMemberRemoveData,
+    GuildRoleData, GuildRoleDeleteData, MessageDeleteBulkData, MessageDeleteData,
+    ReactionData, ReactionEmoji, ReactionRemoveAllData, ReactionRemoveEmojiData,
+    ReadyData, TypingStartData, VoiceServerUpdateData, VoiceStateUpdateData,
+};
 pub use shard::Shard;

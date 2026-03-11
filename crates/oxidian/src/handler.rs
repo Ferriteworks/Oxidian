@@ -1,10 +1,12 @@
 use async_trait::async_trait;
 
-use oxidian_core::models::{channel::Channel, guild::Guild, interaction::Interaction, message::Message};
+use oxidian_core::models::{
+    channel::Channel, guild::Guild, interaction::Interaction, message::Message,
+};
 use oxidian_gateway::events::{
     DispatchEvent, GuildBanData, GuildMemberAddData, GuildMemberRemoveData,
     GuildRoleData, GuildRoleDeleteData, MessageDeleteBulkData, MessageDeleteData,
-    ReadyData, ReactionData, ReactionRemoveAllData, ReactionRemoveEmojiData,
+    ReactionData, ReactionRemoveAllData, ReactionRemoveEmojiData, ReadyData,
     TypingStartData, VoiceServerUpdateData, VoiceStateUpdateData,
 };
 
@@ -87,10 +89,20 @@ pub trait EventHandler: Send + Sync + 'static {
     async fn message_reaction_remove(&self, _ctx: Context, _data: ReactionData) {}
 
     /// Called when all reactions are removed from a message.
-    async fn message_reaction_remove_all(&self, _ctx: Context, _data: ReactionRemoveAllData) {}
+    async fn message_reaction_remove_all(
+        &self,
+        _ctx: Context,
+        _data: ReactionRemoveAllData,
+    ) {
+    }
 
     /// Called when all reactions for a single emoji are removed from a message.
-    async fn message_reaction_remove_emoji(&self, _ctx: Context, _data: ReactionRemoveEmojiData) {}
+    async fn message_reaction_remove_emoji(
+        &self,
+        _ctx: Context,
+        _data: ReactionRemoveEmojiData,
+    ) {
+    }
 
     /// Called when a user joins a guild the bot is in.
     async fn guild_member_add(&self, _ctx: Context, _data: GuildMemberAddData) {}
@@ -134,7 +146,8 @@ pub trait EventHandler: Send + Sync + 'static {
     /// the `endpoint` and `token` (together with the `session_id` from the
     /// matching [`Self::voice_state_update`] event) to connect via
     /// [`VoiceConnection::connect`](oxidian_voice::connection::VoiceConnection::connect).
-    async fn voice_server_update(&self, _ctx: Context, _server: VoiceServerUpdateData) {}
+    async fn voice_server_update(&self, _ctx: Context, _server: VoiceServerUpdateData) {
+    }
 
     /// Called for every event that doesn't have a dedicated handler method.
     /// Useful for logging or handling less-common event types.

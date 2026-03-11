@@ -82,17 +82,11 @@ pub enum Route {
     GetGatewayBot,
 
     /// `GET /applications/{application_id}/commands`
-    GetGlobalCommands {
-        application_id: Snowflake,
-    },
+    GetGlobalCommands { application_id: Snowflake },
     /// `POST /applications/{application_id}/commands`
-    CreateGlobalCommand {
-        application_id: Snowflake,
-    },
+    CreateGlobalCommand { application_id: Snowflake },
     /// `PUT /applications/{application_id}/commands` — bulk overwrite all global commands.
-    BulkOverwriteGlobalCommands {
-        application_id: Snowflake,
-    },
+    BulkOverwriteGlobalCommands { application_id: Snowflake },
     /// `DELETE /applications/{application_id}/commands/{command_id}`
     DeleteGlobalCommand {
         application_id: Snowflake,
@@ -158,36 +152,59 @@ impl Route {
     pub fn url(&self) -> String {
         let base = BASE_URL;
         match self {
-            Self::GetChannel { channel_id }      => format!("{base}/channels/{channel_id}"),
-            Self::CreateMessage { channel_id }   => format!("{base}/channels/{channel_id}/messages"),
-            Self::GetMessage { channel_id, message_id } =>
-                format!("{base}/channels/{channel_id}/messages/{message_id}"),
-            Self::DeleteMessage { channel_id, message_id } =>
-                format!("{base}/channels/{channel_id}/messages/{message_id}"),
-            Self::GetGuild { guild_id }          => format!("{base}/guilds/{guild_id}"),
-            Self::GetGuildMember { guild_id, user_id } =>
-                format!("{base}/guilds/{guild_id}/members/{user_id}"),
-            Self::GetCurrentUser                 => format!("{base}/users/@me"),
-            Self::GetUser { user_id }            => format!("{base}/users/{user_id}"),
-            Self::GetGatewayBot                  => format!("{base}/gateway/bot"),
-            Self::GetGlobalCommands { application_id } =>
-                format!("{base}/applications/{application_id}/commands"),
-            Self::CreateGlobalCommand { application_id } =>
-                format!("{base}/applications/{application_id}/commands"),
-            Self::BulkOverwriteGlobalCommands { application_id } =>
-                format!("{base}/applications/{application_id}/commands"),
-            Self::DeleteGlobalCommand { application_id, command_id } =>
-                format!("{base}/applications/{application_id}/commands/{command_id}"),
-            Self::GetGuildCommands { application_id, guild_id } =>
-                format!("{base}/applications/{application_id}/guilds/{guild_id}/commands"),
-            Self::CreateGuildCommand { application_id, guild_id } =>
-                format!("{base}/applications/{application_id}/guilds/{guild_id}/commands"),
-            Self::BulkOverwriteGuildCommands { application_id, guild_id } =>
-                format!("{base}/applications/{application_id}/guilds/{guild_id}/commands"),
-            Self::DeleteGuildCommand { application_id, guild_id, command_id } =>
-                format!("{base}/applications/{application_id}/guilds/{guild_id}/commands/{command_id}"),
-            Self::CreateInteractionResponse { interaction_id, interaction_token } =>
-                format!("{base}/interactions/{interaction_id}/{interaction_token}/callback"),
+            Self::GetChannel { channel_id } => format!("{base}/channels/{channel_id}"),
+            Self::CreateMessage { channel_id } => format!("{base}/channels/{channel_id}/messages"),
+            Self::GetMessage {
+                channel_id,
+                message_id,
+            } => format!("{base}/channels/{channel_id}/messages/{message_id}"),
+            Self::DeleteMessage {
+                channel_id,
+                message_id,
+            } => format!("{base}/channels/{channel_id}/messages/{message_id}"),
+            Self::GetGuild { guild_id } => format!("{base}/guilds/{guild_id}"),
+            Self::GetGuildMember { guild_id, user_id } => {
+                format!("{base}/guilds/{guild_id}/members/{user_id}")
+            }
+            Self::GetCurrentUser => format!("{base}/users/@me"),
+            Self::GetUser { user_id } => format!("{base}/users/{user_id}"),
+            Self::GetGatewayBot => format!("{base}/gateway/bot"),
+            Self::GetGlobalCommands { application_id } => {
+                format!("{base}/applications/{application_id}/commands")
+            }
+            Self::CreateGlobalCommand { application_id } => {
+                format!("{base}/applications/{application_id}/commands")
+            }
+            Self::BulkOverwriteGlobalCommands { application_id } => {
+                format!("{base}/applications/{application_id}/commands")
+            }
+            Self::DeleteGlobalCommand {
+                application_id,
+                command_id,
+            } => format!("{base}/applications/{application_id}/commands/{command_id}"),
+            Self::GetGuildCommands {
+                application_id,
+                guild_id,
+            } => format!("{base}/applications/{application_id}/guilds/{guild_id}/commands"),
+            Self::CreateGuildCommand {
+                application_id,
+                guild_id,
+            } => format!("{base}/applications/{application_id}/guilds/{guild_id}/commands"),
+            Self::BulkOverwriteGuildCommands {
+                application_id,
+                guild_id,
+            } => format!("{base}/applications/{application_id}/guilds/{guild_id}/commands"),
+            Self::DeleteGuildCommand {
+                application_id,
+                guild_id,
+                command_id,
+            } => format!(
+                "{base}/applications/{application_id}/guilds/{guild_id}/commands/{command_id}"
+            ),
+            Self::CreateInteractionResponse {
+                interaction_id,
+                interaction_token,
+            } => format!("{base}/interactions/{interaction_id}/{interaction_token}/callback"),
         }
     }
 
@@ -202,28 +219,40 @@ impl Route {
             Self::GetChannel { channel_id }
             | Self::CreateMessage { channel_id }
             | Self::GetMessage { channel_id, .. }
-            | Self::DeleteMessage { channel_id, .. } =>
-                format!("channel:{channel_id}"),
+            | Self::DeleteMessage { channel_id, .. } => format!("channel:{channel_id}"),
 
-            Self::GetGuild { guild_id }
-            | Self::GetGuildMember { guild_id, .. } =>
-                format!("guild:{guild_id}"),
+            Self::GetGuild { guild_id } | Self::GetGuildMember { guild_id, .. } => {
+                format!("guild:{guild_id}")
+            }
 
-            Self::GetCurrentUser
-            | Self::GetUser { .. }
-            | Self::GetGatewayBot => "global".to_owned(),
+            Self::GetCurrentUser | Self::GetUser { .. } | Self::GetGatewayBot => {
+                "global".to_owned()
+            }
 
             Self::GetGlobalCommands { application_id }
             | Self::CreateGlobalCommand { application_id }
             | Self::BulkOverwriteGlobalCommands { application_id }
-            | Self::DeleteGlobalCommand { application_id, .. } =>
-                format!("application:{application_id}:commands"),
+            | Self::DeleteGlobalCommand { application_id, .. } => {
+                format!("application:{application_id}:commands")
+            }
 
-            Self::GetGuildCommands { application_id, guild_id }
-            | Self::CreateGuildCommand { application_id, guild_id }
-            | Self::BulkOverwriteGuildCommands { application_id, guild_id }
-            | Self::DeleteGuildCommand { application_id, guild_id, .. } =>
-                format!("application:{application_id}:guild:{guild_id}:commands"),
+            Self::GetGuildCommands {
+                application_id,
+                guild_id,
+            }
+            | Self::CreateGuildCommand {
+                application_id,
+                guild_id,
+            }
+            | Self::BulkOverwriteGuildCommands {
+                application_id,
+                guild_id,
+            }
+            | Self::DeleteGuildCommand {
+                application_id,
+                guild_id,
+                ..
+            } => format!("application:{application_id}:guild:{guild_id}:commands"),
 
             Self::CreateInteractionResponse { .. } => "interaction".to_owned(),
         }

@@ -22,21 +22,21 @@ pub use oxidian_core::intents::Intents;
 /// Re-export [`VoiceConnection`] at crate root.
 pub use oxidian_voice::VoiceConnection;
 
+/// High-level [`Bot`] entry point.
+pub mod bot;
+/// Prefix command registry.
+pub mod command;
 /// Request context passed to event handlers and command callbacks.
 pub mod context;
 /// [`EventHandler`] trait for receiving gateway events.
 pub mod handler;
-/// Prefix command registry.
-pub mod command;
-/// High-level [`Bot`] entry point.
-pub mod bot;
 
 pub use bot::{Bot, BotBuilder};
 pub use command::{Command, Module};
-/// Re-export [`ApplicationCommand`] at crate root for use in [`Module::slash_commands`].
-pub use oxidian_interactions::command::ApplicationCommand;
 pub use context::{Context, GatewayHandle};
 pub use handler::EventHandler;
+/// Re-export [`ApplicationCommand`] at crate root for use in [`Module::slash_commands`].
+pub use oxidian_interactions::command::ApplicationCommand;
 
 /// Initialise Oxidian: installs the rustls crypto provider (ring) and sets up
 /// the `tracing` subscriber from the `RUST_LOG` environment variable.

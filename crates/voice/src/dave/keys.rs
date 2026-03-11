@@ -14,5 +14,5 @@
 pub struct KeySet {
     // TODO: Add MLS group state and per-sender keys.
     pub user_id: u64,
-    pub key_id:  u32,
+    pub key_id: u32,
 }

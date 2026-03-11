@@ -80,12 +80,12 @@ impl RateLimitHeaders {
         };
 
         Self {
-            bucket:      get("x-ratelimit-bucket"),
-            limit:       get("x-ratelimit-limit").and_then(|v| v.parse().ok()),
-            remaining:   get("x-ratelimit-remaining").and_then(|v| v.parse().ok()),
+            bucket: get("x-ratelimit-bucket"),
+            limit: get("x-ratelimit-limit").and_then(|v| v.parse().ok()),
+            remaining: get("x-ratelimit-remaining").and_then(|v| v.parse().ok()),
             reset_after: get("x-ratelimit-reset-after").and_then(|v| v.parse().ok()),
-            global:      get("x-ratelimit-global").as_deref() == Some("true"),
-            scope:       get("x-ratelimit-scope"),
+            global: get("x-ratelimit-global").as_deref() == Some("true"),
+            scope: get("x-ratelimit-scope"),
         }
     }
 }
@@ -118,7 +118,10 @@ impl RateLimiter {
                 let now = Instant::now();
                 if reset_at > now {
                     let wait = reset_at - now;
-                    warn!(wait_ms = wait.as_millis(), "global rate limit active — sleeping");
+                    warn!(
+                        wait_ms = wait.as_millis(),
+                        "global rate limit active — sleeping"
+                    );
                     drop(global);
                     sleep(wait).await;
                 }
@@ -129,7 +132,9 @@ impl RateLimiter {
         if let Some(id) = bucket_id {
             let buckets = self.buckets.lock().await;
             if let Some(bucket) = buckets.get(id) {
-                if let Some(wait) = bucket.time_until_reset().filter(|_| bucket.is_exhausted()) {
+                if let Some(wait) =
+                    bucket.time_until_reset().filter(|_| bucket.is_exhausted())
+                {
                     warn!(
                         bucket = id,
                         wait_ms = wait.as_millis(),
@@ -173,7 +178,11 @@ impl RateLimiter {
 
         self.buckets.lock().await.insert(
             id.to_owned(),
-            Bucket { limit, remaining, reset_at },
+            Bucket {
+                limit,
+                remaining,
+                reset_at,
+            },
         );
     }
 

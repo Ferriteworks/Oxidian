@@ -21,7 +21,9 @@ pub mod command;
 pub mod components;
 pub mod context_menu;
 
-pub use command::{ApplicationCommand, CommandChoice, CommandOption, CommandOptionBuilder,
-    SlashCommandBuilder};
 pub use autocomplete::AutocompleteResponse;
+pub use command::{
+    ApplicationCommand, CommandChoice, CommandOption, CommandOptionBuilder,
+    SlashCommandBuilder,
+};
 pub use context_menu::{MessageCommand, UserCommand};

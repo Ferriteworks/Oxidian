@@ -23,7 +23,7 @@ impl CommandChoice {
     /// A choice with a string value.
     pub fn string(name: impl Into<String>, value: impl Into<String>) -> Self {
         Self {
-            name:  name.into(),
+            name: name.into(),
             value: serde_json::Value::String(value.into()),
         }
     }
@@ -31,7 +31,7 @@ impl CommandChoice {
     /// A choice with an integer value.
     pub fn integer(name: impl Into<String>, value: i64) -> Self {
         Self {
-            name:  name.into(),
+            name: name.into(),
             value: serde_json::Value::from(value),
         }
     }
@@ -39,7 +39,7 @@ impl CommandChoice {
     /// A choice with a floating-point number value.
     pub fn number(name: impl Into<String>, value: f64) -> Self {
         Self {
-            name:  name.into(),
+            name: name.into(),
             value: serde_json::Value::from(value),
         }
     }

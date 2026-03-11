@@ -76,7 +76,7 @@ pub(crate) fn build_heartbeat(
 ) -> tokio_tungstenite::tungstenite::Message {
     let payload = match seq {
         Some(s) => serde_json::json!({ "op": Opcode::Heartbeat as u8, "d": s }),
-        None    => serde_json::json!({ "op": Opcode::Heartbeat as u8, "d": null }),
+        None => serde_json::json!({ "op": Opcode::Heartbeat as u8, "d": null }),
     };
     tokio_tungstenite::tungstenite::Message::Text(
         serde_json::to_string(&payload)
@@ -84,4 +84,3 @@ pub(crate) fn build_heartbeat(
             .into(),
     )
 }
-

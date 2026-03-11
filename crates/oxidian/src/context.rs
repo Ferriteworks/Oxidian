@@ -19,7 +19,9 @@ pub struct GatewayHandle {
 }
 
 impl GatewayHandle {
-    pub(crate) fn new(tx: Arc<tokio::sync::broadcast::Sender<serde_json::Value>>) -> Self {
+    pub(crate) fn new(
+        tx: Arc<tokio::sync::broadcast::Sender<serde_json::Value>>,
+    ) -> Self {
         Self { tx }
     }
 
@@ -103,7 +105,11 @@ impl Context {
     /// ```rust,ignore
     /// ctx.reply(&msg, "pong!").await?;
     /// ```
-    pub async fn reply(&self, msg: &Message, content: impl Into<String>) -> Result<Message> {
+    pub async fn reply(
+        &self,
+        msg: &Message,
+        content: impl Into<String>,
+    ) -> Result<Message> {
         self.send(msg.channel_id, content).await
     }
 
@@ -120,7 +126,8 @@ impl Context {
         interaction: &Interaction,
         response: InteractionResponse,
     ) -> Result<()> {
-        let body = serde_json::to_value(&response).map_err(OxidianError::Serialization)?;
+        let body =
+            serde_json::to_value(&response).map_err(OxidianError::Serialization)?;
         self.http
             .create_interaction_response(interaction.id, &interaction.token, body)
             .await

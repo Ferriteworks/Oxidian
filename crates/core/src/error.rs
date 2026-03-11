@@ -45,7 +45,9 @@ pub enum Error {
     MissingPermissions(String),
 
     /// The bot token is absent, has been revoked, or failed Discord's verification.
-    #[error("authentication failed; check that the bot token is correct and has not been revoked — {0}")]
+    #[error(
+        "authentication failed; check that the bot token is correct and has not been revoked — {0}"
+    )]
     Auth(String),
 
     /// A Discord rate-limit was hit.  The request was not retried.

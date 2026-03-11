@@ -1,12 +1,7 @@
 use oxidian_core::{
     models::{
-        channel::Channel,
-        guild::Guild,
-        interaction::Interaction,
-        member::Member,
-        message::Message,
-        role::Role,
-        user::User,
+        channel::Channel, guild::Guild, interaction::Interaction, member::Member,
+        message::Message, role::Role, user::User,
     },
     snowflake::Snowflake,
 };

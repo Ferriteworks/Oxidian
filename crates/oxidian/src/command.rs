@@ -1,6 +1,9 @@
 use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
 
-use oxidian_core::{error::Result, models::{interaction::Interaction, message::Message}};
+use oxidian_core::{
+    error::Result,
+    models::{interaction::Interaction, message::Message},
+};
 use oxidian_interactions::command::ApplicationCommand;
 
 use crate::context::Context;
@@ -9,7 +12,8 @@ use crate::context::Context;
 pub type BoxFuture = Pin<Box<dyn Future<Output = Result<()>> + Send>>;
 
 /// A type-erased, cheaply cloneable command handler function.
-pub type CommandFn = Arc<dyn Fn(Context, Message, Vec<String>) -> BoxFuture + Send + Sync>;
+pub type CommandFn =
+    Arc<dyn Fn(Context, Message, Vec<String>) -> BoxFuture + Send + Sync>;
 
 /// A self-contained command definition — a name paired with its handler.
 ///
@@ -42,7 +46,10 @@ impl Command {
         let f = Arc::new(f);
         let handler: CommandFn =
             Arc::new(move |ctx, msg, args| Box::pin(f(ctx, msg, args)) as BoxFuture);
-        Self { name: name.into(), handler }
+        Self {
+            name: name.into(),
+            handler,
+        }
     }
 }
 
@@ -94,7 +101,9 @@ impl Command {
 #[async_trait::async_trait]
 pub trait Module: Send + Sync + 'static {
     /// Prefix commands this module provides.
-    fn commands(&self) -> Vec<Command> { vec![] }
+    fn commands(&self) -> Vec<Command> {
+        vec![]
+    }
 
     /// Slash command definitions this module provides.
     ///
@@ -102,7 +111,9 @@ pub trait Module: Send + Sync + 'static {
     /// [`handle_interaction`](Self::handle_interaction). Use
     /// `http.bulk_overwrite_global_commands()` or
     /// `http.bulk_overwrite_guild_commands()` to sync these with Discord.
-    fn slash_commands(&self) -> Vec<ApplicationCommand> { vec![] }
+    fn slash_commands(&self) -> Vec<ApplicationCommand> {
+        vec![]
+    }
 
     /// Called when a slash command interaction arrives whose name matches one
     /// of the names returned by [`slash_commands`](Self::slash_commands).

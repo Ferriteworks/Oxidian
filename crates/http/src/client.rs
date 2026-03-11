@@ -26,8 +26,11 @@ use crate::{
 pub const BASE_URL: &str = "https://discord.com/api/v10";
 
 /// User-Agent sent on every request.  Discord requires a meaningful UA.
-const USER_AGENT_VALUE: &str =
-    concat!("DiscordBot (https://github.com/KilledInAction/Oxidian, ", env!("CARGO_PKG_VERSION"), ")");
+const USER_AGENT_VALUE: &str = concat!(
+    "DiscordBot (https://github.com/KilledInAction/Oxidian, ",
+    env!("CARGO_PKG_VERSION"),
+    ")"
+);
 
 /// JSON structure returned by Discord on 4xx errors.
 #[derive(Debug, serde::Deserialize)]
@@ -57,13 +60,11 @@ impl HttpClient {
 
         default_headers.insert(
             AUTHORIZATION,
-            HeaderValue::from_str(&auth_value)
-                .map_err(|e| HttpError::Request(format!("invalid token characters: {e}")))?,
+            HeaderValue::from_str(&auth_value).map_err(|e| {
+                HttpError::Request(format!("invalid token characters: {e}"))
+            })?,
         );
-        default_headers.insert(
-            USER_AGENT,
-            HeaderValue::from_static(USER_AGENT_VALUE),
-        );
+        default_headers.insert(USER_AGENT, HeaderValue::from_static(USER_AGENT_VALUE));
 
         let inner = reqwest::Client::builder()
             .default_headers(default_headers)
@@ -75,7 +76,6 @@ impl HttpClient {
             rate_limiter: RateLimiter::new(),
         })
     }
-
 
     /// Send a request for the given [`Route`], optionally with a JSON body,
     /// and deserialize the response into `T`.
@@ -100,7 +100,8 @@ impl HttpClient {
 
             debug!(method = ?route.method(), url = %route.url(), attempt, "sending HTTP request");
 
-            let resp = self.inner
+            let resp = self
+                .inner
                 .execute(req)
                 .await
                 .map_err(|e| HttpError::Request(e.to_string()))?;
@@ -127,7 +128,8 @@ impl HttpClient {
                         retry_after_secs = retry_after,
                         "429 on bucket — sleeping before retry"
                     );
-                    tokio::time::sleep(std::time::Duration::from_secs_f64(retry_after)).await;
+                    tokio::time::sleep(std::time::Duration::from_secs_f64(retry_after))
+                        .await;
                 }
 
                 if attempt == 0 {
@@ -143,7 +145,8 @@ impl HttpClient {
             if !status.is_success() {
                 let body_text = resp.text().await.unwrap_or_default();
                 // Try to parse Discord's JSON error body.
-                if let Ok(api_err) = serde_json::from_str::<DiscordApiError>(&body_text) {
+                if let Ok(api_err) = serde_json::from_str::<DiscordApiError>(&body_text)
+                {
                     return Err(OxidianError::Api {
                         code: api_err.code,
                         message: api_err.message,
@@ -152,23 +155,30 @@ impl HttpClient {
                 return Err(HttpError::UnexpectedStatus {
                     status: status.as_u16(),
                     body: body_text,
-                }.into());
+                }
+                .into());
             }
 
-            let response_text = resp.text().await
+            let response_text = resp
+                .text()
+                .await
                 .map_err(|e| HttpError::Decode(e.to_string()))?;
 
             // 204 No Content and similar empty-body successes — try deserialising
             // from JSON `null` so that `Result<()>` callers succeed.
-            let effective = if response_text.is_empty() { "null" } else { &response_text };
+            let effective = if response_text.is_empty() {
+                "null"
+            } else {
+                &response_text
+            };
 
-            return serde_json::from_str::<T>(effective)
-                .map_err(|e| HttpError::Decode(format!("{e} — body: {response_text}")).into());
+            return serde_json::from_str::<T>(effective).map_err(|e| {
+                HttpError::Decode(format!("{e} — body: {response_text}")).into()
+            });
         }
 
         unreachable!()
     }
-
 
     /// Fetch the current bot user (`GET /users/@me`).
     pub async fn get_current_user(&self) -> Result<Value, OxidianError> {
@@ -200,7 +210,8 @@ impl HttpClient {
         channel_id: oxidian_core::snowflake::Snowflake,
         body: Value,
     ) -> Result<Value, OxidianError> {
-        self.request(Route::CreateMessage { channel_id }, Some(body)).await
+        self.request(Route::CreateMessage { channel_id }, Some(body))
+            .await
     }
 
     /// Delete a message (`DELETE /channels/{channel.id}/messages/{message.id}`).
@@ -209,7 +220,14 @@ impl HttpClient {
         channel_id: oxidian_core::snowflake::Snowflake,
         message_id: oxidian_core::snowflake::Snowflake,
     ) -> Result<Value, OxidianError> {
-        self.request(Route::DeleteMessage { channel_id, message_id }, None).await
+        self.request(
+            Route::DeleteMessage {
+                channel_id,
+                message_id,
+            },
+            None,
+        )
+        .await
     }
 
     /// Fetch a guild by ID (`GET /guilds/{guild.id}`).
@@ -225,13 +243,13 @@ impl HttpClient {
         self.request(Route::GetGatewayBot, None).await
     }
 
-
     /// Fetch all global commands for the application.
     pub async fn get_global_commands(
         &self,
         application_id: oxidian_core::snowflake::Snowflake,
     ) -> Result<Value, OxidianError> {
-        self.request(Route::GetGlobalCommands { application_id }, None).await
+        self.request(Route::GetGlobalCommands { application_id }, None)
+            .await
     }
 
     /// Register (or overwrite) a global command.
@@ -242,7 +260,8 @@ impl HttpClient {
         application_id: oxidian_core::snowflake::Snowflake,
         body: Value,
     ) -> Result<Value, OxidianError> {
-        self.request(Route::CreateGlobalCommand { application_id }, Some(body)).await
+        self.request(Route::CreateGlobalCommand { application_id }, Some(body))
+            .await
     }
 
     /// Delete a global command by ID.
@@ -251,7 +270,14 @@ impl HttpClient {
         application_id: oxidian_core::snowflake::Snowflake,
         command_id: oxidian_core::snowflake::Snowflake,
     ) -> Result<(), OxidianError> {
-        self.request(Route::DeleteGlobalCommand { application_id, command_id }, None).await
+        self.request(
+            Route::DeleteGlobalCommand {
+                application_id,
+                command_id,
+            },
+            None,
+        )
+        .await
     }
 
     /// Fetch all guild-scoped commands for the application.
@@ -260,7 +286,14 @@ impl HttpClient {
         application_id: oxidian_core::snowflake::Snowflake,
         guild_id: oxidian_core::snowflake::Snowflake,
     ) -> Result<Value, OxidianError> {
-        self.request(Route::GetGuildCommands { application_id, guild_id }, None).await
+        self.request(
+            Route::GetGuildCommands {
+                application_id,
+                guild_id,
+            },
+            None,
+        )
+        .await
     }
 
     /// Register (or overwrite) a guild-scoped command.
@@ -270,7 +303,14 @@ impl HttpClient {
         guild_id: oxidian_core::snowflake::Snowflake,
         body: Value,
     ) -> Result<Value, OxidianError> {
-        self.request(Route::CreateGuildCommand { application_id, guild_id }, Some(body)).await
+        self.request(
+            Route::CreateGuildCommand {
+                application_id,
+                guild_id,
+            },
+            Some(body),
+        )
+        .await
     }
 
     /// Bulk overwrite **all** global commands.
@@ -285,8 +325,13 @@ impl HttpClient {
         application_id: oxidian_core::snowflake::Snowflake,
         commands: &[oxidian_interactions::command::ApplicationCommand],
     ) -> Result<Value, OxidianError> {
-        let body = serde_json::to_value(commands).map_err(OxidianError::Serialization)?;
-        self.request(Route::BulkOverwriteGlobalCommands { application_id }, Some(body)).await
+        let body =
+            serde_json::to_value(commands).map_err(OxidianError::Serialization)?;
+        self.request(
+            Route::BulkOverwriteGlobalCommands { application_id },
+            Some(body),
+        )
+        .await
     }
 
     /// Bulk overwrite **all** guild-scoped commands.
@@ -301,11 +346,16 @@ impl HttpClient {
         guild_id: oxidian_core::snowflake::Snowflake,
         commands: &[oxidian_interactions::command::ApplicationCommand],
     ) -> Result<Value, OxidianError> {
-        let body = serde_json::to_value(commands).map_err(OxidianError::Serialization)?;
+        let body =
+            serde_json::to_value(commands).map_err(OxidianError::Serialization)?;
         self.request(
-            Route::BulkOverwriteGuildCommands { application_id, guild_id },
+            Route::BulkOverwriteGuildCommands {
+                application_id,
+                guild_id,
+            },
             Some(body),
-        ).await
+        )
+        .await
     }
 
     /// Delete a guild-scoped command by ID.
@@ -316,9 +366,14 @@ impl HttpClient {
         command_id: oxidian_core::snowflake::Snowflake,
     ) -> Result<(), OxidianError> {
         self.request(
-            Route::DeleteGuildCommand { application_id, guild_id, command_id },
+            Route::DeleteGuildCommand {
+                application_id,
+                guild_id,
+                command_id,
+            },
             None,
-        ).await
+        )
+        .await
     }
 
     /// Respond to a Discord interaction.
@@ -338,9 +393,9 @@ impl HttpClient {
                 interaction_token: interaction_token.to_owned(),
             },
             Some(body),
-        ).await
+        )
+        .await
     }
-
 
     fn build_request(
         &self,
@@ -349,23 +404,23 @@ impl HttpClient {
     ) -> Result<reqwest::Request, OxidianError> {
         let url = route.url();
         let method = match route.method() {
-            Method::Get    => reqwest::Method::GET,
-            Method::Post   => reqwest::Method::POST,
-            Method::Patch  => reqwest::Method::PATCH,
-            Method::Put    => reqwest::Method::PUT,
+            Method::Get => reqwest::Method::GET,
+            Method::Post => reqwest::Method::POST,
+            Method::Patch => reqwest::Method::PATCH,
+            Method::Put => reqwest::Method::PUT,
             Method::Delete => reqwest::Method::DELETE,
         };
 
         let mut builder = self.inner.request(method, &url);
 
         if let Some(json) = body {
-            let text = serde_json::to_string(&json)
-                .map_err(OxidianError::Serialization)?;
-            builder = builder
-                .header(CONTENT_TYPE, "application/json")
-                .body(text);
+            let text =
+                serde_json::to_string(&json).map_err(OxidianError::Serialization)?;
+            builder = builder.header(CONTENT_TYPE, "application/json").body(text);
         }
 
-        builder.build().map_err(|e| HttpError::Request(e.to_string()).into())
+        builder
+            .build()
+            .map_err(|e| HttpError::Request(e.to_string()).into())
     }
 }

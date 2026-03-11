@@ -28,7 +28,9 @@ pub struct AutocompleteResponse {
 impl AutocompleteResponse {
     /// Build a response from an iterable of choices.
     pub fn new(choices: impl IntoIterator<Item = AutocompleteChoice>) -> Self {
-        Self { choices: choices.into_iter().collect() }
+        Self {
+            choices: choices.into_iter().collect(),
+        }
     }
 
     /// Add a single choice.

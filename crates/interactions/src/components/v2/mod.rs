@@ -27,14 +27,14 @@ impl TryFrom<u8> for ComponentV2Type {
     type Error = String;
     fn try_from(v: u8) -> Result<Self, Self::Error> {
         match v {
-            9  => Ok(Self::Section),
+            9 => Ok(Self::Section),
             10 => Ok(Self::TextDisplay),
             11 => Ok(Self::Thumbnail),
             12 => Ok(Self::MediaGallery),
             13 => Ok(Self::File),
             14 => Ok(Self::Separator),
             17 => Ok(Self::Container),
-            _  => Err(format!("unknown v2 component type: {v}")),
+            _ => Err(format!("unknown v2 component type: {v}")),
         }
     }
 }

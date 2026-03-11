@@ -6,16 +6,19 @@ use tracing::{debug, error, info, warn};
 use oxidian_core::{
     error::{Error as OxidianError, GatewayError},
     intents::Intents,
-    models::{channel::Channel, guild::Guild, interaction::Interaction, message::Message as DiscordMessage},
+    models::{
+        channel::Channel, guild::Guild, interaction::Interaction,
+        message::Message as DiscordMessage,
+    },
 };
 
 use crate::{
     events::{
-        DispatchEvent, GatewayPayload, HelloData, MessageDeleteData, ReadyData,
-        UnavailableGuild, VoiceServerUpdateData, VoiceStateUpdateData,
-        GuildMemberAddData, GuildMemberRemoveData, GuildBanData, GuildRoleData,
-        GuildRoleDeleteData, MessageDeleteBulkData, ReactionData,
-        ReactionRemoveAllData, ReactionRemoveEmojiData, TypingStartData,
+        DispatchEvent, GatewayPayload, GuildBanData, GuildMemberAddData,
+        GuildMemberRemoveData, GuildRoleData, GuildRoleDeleteData, HelloData,
+        MessageDeleteBulkData, MessageDeleteData, ReactionData, ReactionRemoveAllData,
+        ReactionRemoveEmojiData, ReadyData, TypingStartData, UnavailableGuild,
+        VoiceServerUpdateData, VoiceStateUpdateData,
     },
     heartbeat::{self, HeartbeatMessage, WsMessageTx},
     opcodes::Opcode,
@@ -92,7 +95,10 @@ pub async fn connect(
         .map(|s| (s.session_id.clone(), s.resume_gateway_url.clone()));
 
     let hello = recv_hello(&mut stream).await?;
-    info!(interval_ms = hello.heartbeat_interval, "received Hello from gateway");
+    info!(
+        interval_ms = hello.heartbeat_interval,
+        "received Hello from gateway"
+    );
 
     // all outgoing messages are funneled through this channel
     let (write_tx, write_rx) = mpsc::channel::<Message>(64);
@@ -106,7 +112,11 @@ pub async fn connect(
                 match outbound_rx.recv().await {
                     Ok(value) => {
                         if let Ok(text) = serde_json::to_string(&value) {
-                            if write_tx_out.send(Message::Text(text.into())).await.is_err() {
+                            if write_tx_out
+                                .send(Message::Text(text.into()))
+                                .await
+                                .is_err()
+                            {
                                 break;
                             }
                         }
@@ -193,10 +203,12 @@ pub async fn connect(
             Some(Opcode::Reconnect) => {
                 info!("gateway requested reconnect (op 7) — will attempt resume");
                 let _ = hb_tx.send(HeartbeatMessage::Stop).await;
-                let state = current_session.map(|(session_id, resume_gateway_url)| SessionState {
-                    session_id,
-                    resume_gateway_url,
-                    last_seq: *seq_tx.borrow(),
+                let state = current_session.map(|(session_id, resume_gateway_url)| {
+                    SessionState {
+                        session_id,
+                        resume_gateway_url,
+                        last_seq: *seq_tx.borrow(),
+                    }
                 });
                 return Ok(state);
             }
@@ -209,14 +221,19 @@ pub async fn connect(
                 warn!(resumable, "gateway invalidated the session");
                 let _ = hb_tx.send(HeartbeatMessage::Stop).await;
                 if resumable {
-                    let state = current_session.map(|(session_id, resume_gateway_url)| SessionState {
-                        session_id,
-                        resume_gateway_url,
-                        last_seq: *seq_tx.borrow(),
-                    });
+                    let state =
+                        current_session.map(|(session_id, resume_gateway_url)| {
+                            SessionState {
+                                session_id,
+                                resume_gateway_url,
+                                last_seq: *seq_tx.borrow(),
+                            }
+                        });
                     return Ok(state);
                 } else {
-                    return Err(GatewayError::SessionInvalidated { resumable: false }.into());
+                    return Err(
+                        GatewayError::SessionInvalidated { resumable: false }.into()
+                    );
                 }
             }
             Some(other) => {
@@ -232,7 +249,6 @@ pub async fn connect(
     Ok(None)
 }
 
-
 async fn write_loop(mut sink: WsSink, mut rx: mpsc::Receiver<Message>) {
     while let Some(msg) = rx.recv().await {
         if sink.send(msg).await.is_err() {
@@ -240,7 +256,6 @@ async fn write_loop(mut sink: WsSink, mut rx: mpsc::Receiver<Message>) {
         }
     }
 }
-
 
 async fn recv_hello(stream: &mut WsStream) -> Result<HelloData, OxidianError> {
     while let Some(msg) = stream.next().await {
@@ -266,10 +281,10 @@ async fn recv_hello(stream: &mut WsStream) -> Result<HelloData, OxidianError> {
         }
     }
 
-    Err(GatewayError::Connection(
-        "stream ended before Hello was received".to_owned(),
+    Err(
+        GatewayError::Connection("stream ended before Hello was received".to_owned())
+            .into(),
     )
-    .into())
 }
 
 /// Send an Identify payload (op 2) through the write channel.
@@ -384,13 +399,15 @@ fn parse_dispatch(payload: GatewayPayload) -> Option<DispatchEvent> {
                 None
             }
         },
-        "MESSAGE_DELETE_BULK" => match serde_json::from_value::<MessageDeleteBulkData>(data) {
-            Ok(d) => Some(DispatchEvent::MessageDeleteBulk(d)),
-            Err(e) => {
-                warn!(error = %e, "failed to parse MESSAGE_DELETE_BULK payload");
-                None
+        "MESSAGE_DELETE_BULK" => {
+            match serde_json::from_value::<MessageDeleteBulkData>(data) {
+                Ok(d) => Some(DispatchEvent::MessageDeleteBulk(d)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse MESSAGE_DELETE_BULK payload");
+                    None
+                }
             }
-        },
+        }
         "MESSAGE_REACTION_ADD" => match serde_json::from_value::<ReactionData>(data) {
             Ok(d) => Some(DispatchEvent::MessageReactionAdd(d)),
             Err(e) => {
@@ -398,27 +415,32 @@ fn parse_dispatch(payload: GatewayPayload) -> Option<DispatchEvent> {
                 None
             }
         },
-        "MESSAGE_REACTION_REMOVE" => match serde_json::from_value::<ReactionData>(data) {
+        "MESSAGE_REACTION_REMOVE" => match serde_json::from_value::<ReactionData>(data)
+        {
             Ok(d) => Some(DispatchEvent::MessageReactionRemove(d)),
             Err(e) => {
                 warn!(error = %e, "failed to parse MESSAGE_REACTION_REMOVE payload");
                 None
             }
         },
-        "MESSAGE_REACTION_REMOVE_ALL" => match serde_json::from_value::<ReactionRemoveAllData>(data) {
-            Ok(d) => Some(DispatchEvent::MessageReactionRemoveAll(d)),
-            Err(e) => {
-                warn!(error = %e, "failed to parse MESSAGE_REACTION_REMOVE_ALL payload");
-                None
+        "MESSAGE_REACTION_REMOVE_ALL" => {
+            match serde_json::from_value::<ReactionRemoveAllData>(data) {
+                Ok(d) => Some(DispatchEvent::MessageReactionRemoveAll(d)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse MESSAGE_REACTION_REMOVE_ALL payload");
+                    None
+                }
             }
-        },
-        "MESSAGE_REACTION_REMOVE_EMOJI" => match serde_json::from_value::<ReactionRemoveEmojiData>(data) {
-            Ok(d) => Some(DispatchEvent::MessageReactionRemoveEmoji(d)),
-            Err(e) => {
-                warn!(error = %e, "failed to parse MESSAGE_REACTION_REMOVE_EMOJI payload");
-                None
+        }
+        "MESSAGE_REACTION_REMOVE_EMOJI" => {
+            match serde_json::from_value::<ReactionRemoveEmojiData>(data) {
+                Ok(d) => Some(DispatchEvent::MessageReactionRemoveEmoji(d)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse MESSAGE_REACTION_REMOVE_EMOJI payload");
+                    None
+                }
             }
-        },
+        }
         "GUILD_CREATE" => match serde_json::from_value::<Guild>(data) {
             Ok(guild) => {
                 debug!(guild = %guild.name, id = %guild.id, "GUILD_CREATE");
@@ -443,20 +465,24 @@ fn parse_dispatch(payload: GatewayPayload) -> Option<DispatchEvent> {
                 None
             }
         },
-        "GUILD_MEMBER_ADD" => match serde_json::from_value::<GuildMemberAddData>(data) {
-            Ok(d) => Some(DispatchEvent::GuildMemberAdd(d)),
-            Err(e) => {
-                warn!(error = %e, "failed to parse GUILD_MEMBER_ADD payload");
-                None
+        "GUILD_MEMBER_ADD" => {
+            match serde_json::from_value::<GuildMemberAddData>(data) {
+                Ok(d) => Some(DispatchEvent::GuildMemberAdd(d)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse GUILD_MEMBER_ADD payload");
+                    None
+                }
             }
-        },
-        "GUILD_MEMBER_REMOVE" => match serde_json::from_value::<GuildMemberRemoveData>(data) {
-            Ok(d) => Some(DispatchEvent::GuildMemberRemove(d)),
-            Err(e) => {
-                warn!(error = %e, "failed to parse GUILD_MEMBER_REMOVE payload");
-                None
+        }
+        "GUILD_MEMBER_REMOVE" => {
+            match serde_json::from_value::<GuildMemberRemoveData>(data) {
+                Ok(d) => Some(DispatchEvent::GuildMemberRemove(d)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse GUILD_MEMBER_REMOVE payload");
+                    None
+                }
             }
-        },
+        }
         "GUILD_BAN_ADD" => match serde_json::from_value::<GuildBanData>(data) {
             Ok(d) => Some(DispatchEvent::GuildBanAdd(d)),
             Err(e) => {
@@ -485,13 +511,15 @@ fn parse_dispatch(payload: GatewayPayload) -> Option<DispatchEvent> {
                 None
             }
         },
-        "GUILD_ROLE_DELETE" => match serde_json::from_value::<GuildRoleDeleteData>(data) {
-            Ok(d) => Some(DispatchEvent::GuildRoleDelete(d)),
-            Err(e) => {
-                warn!(error = %e, "failed to parse GUILD_ROLE_DELETE payload");
-                None
+        "GUILD_ROLE_DELETE" => {
+            match serde_json::from_value::<GuildRoleDeleteData>(data) {
+                Ok(d) => Some(DispatchEvent::GuildRoleDelete(d)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse GUILD_ROLE_DELETE payload");
+                    None
+                }
             }
-        },
+        }
         "CHANNEL_CREATE" => match serde_json::from_value::<Channel>(data) {
             Ok(c) => Some(DispatchEvent::ChannelCreate(c)),
             Err(e) => {
@@ -539,7 +567,7 @@ fn parse_dispatch(payload: GatewayPayload) -> Option<DispatchEvent> {
                     None
                 }
             }
-        },
+        }
         "VOICE_SERVER_UPDATE" => {
             debug!(raw = %data, "raw VOICE_SERVER_UPDATE");
             match serde_json::from_value::<VoiceServerUpdateData>(data) {
@@ -549,7 +577,7 @@ fn parse_dispatch(payload: GatewayPayload) -> Option<DispatchEvent> {
                     None
                 }
             }
-        },
+        }
         other => {
             debug!(event = other, "unhandled dispatch event type");
             Some(DispatchEvent::Unknown {
@@ -559,4 +587,3 @@ fn parse_dispatch(payload: GatewayPayload) -> Option<DispatchEvent> {
         }
     }
 }
-
