@@ -103,6 +103,7 @@ type WsStream = futures_util::stream::SplitStream<
 pub async fn connect(
     token: &str,
     intents: Intents,
+    shard_info: Option<crate::shard::ShardInfo>,
     event_tx: mpsc::Sender<DispatchEvent>,
     mut outbound_rx: broadcast::Receiver<serde_json::Value>,
     session: Option<SessionState>,
@@ -165,7 +166,7 @@ pub async fn connect(
         send_resume(&write_tx, token, &s.session_id, s.last_seq).await?;
         info!(session_id = %s.session_id, "sent Resume");
     } else {
-        send_identify(&write_tx, token, intents).await?;
+        send_identify(&write_tx, token, intents, shard_info).await?;
         info!("sent Identify");
     }
 
@@ -325,18 +326,23 @@ async fn send_identify(
     write_tx: &WsMessageTx,
     token: &str,
     intents: Intents,
+    shard_info: Option<crate::shard::ShardInfo>,
 ) -> Result<(), OxidianError> {
+    let mut d = serde_json::json!({
+        "token": format!("Bot {token}"),
+        "intents": intents.bits(),
+        "properties": {
+            "os": std::env::consts::OS,
+            "browser": "oxidian",
+            "device":  "oxidian"
+        }
+    });
+    if let Some(info) = shard_info {
+        d["shard"] = serde_json::json!([info.shard_id, info.num_shards]);
+    }
     let payload = serde_json::json!({
         "op": Opcode::Identify as u8,
-        "d": {
-            "token": format!("Bot {token}"),
-            "intents": intents.bits(),
-            "properties": {
-                "os": std::env::consts::OS,
-                "browser": "oxidian",
-                "device":  "oxidian"
-            }
-        }
+        "d": d
     });
 
     let text = serde_json::to_string(&payload).map_err(OxidianError::Serialization)?;

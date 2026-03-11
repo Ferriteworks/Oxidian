@@ -35,28 +35,91 @@ use crate::{
     events::DispatchEvent,
 };
 
+/// Identifies this shard within a multi-shard deployment.
+///
+/// Discord uses the formula `(guild_id >> 22) % num_shards` to determine
+/// which shard receives events for a given guild.
+///
+/// For single-shard bots, use `ShardInfo::single()` (the default).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ShardInfo {
+    /// Zero-based shard ID.
+    pub shard_id: u32,
+    /// Total number of shards in the deployment.
+    pub num_shards: u32,
+}
+
+impl ShardInfo {
+    /// Create a `ShardInfo` for a single-shard setup (`[0, 1]`).
+    pub fn single() -> Self {
+        Self {
+            shard_id: 0,
+            num_shards: 1,
+        }
+    }
+
+    /// Create a `ShardInfo` for shard `id` out of `total` shards.
+    pub fn new(shard_id: u32, num_shards: u32) -> Self {
+        assert!(shard_id < num_shards, "shard_id must be < num_shards");
+        Self {
+            shard_id,
+            num_shards,
+        }
+    }
+}
+
+impl Default for ShardInfo {
+    fn default() -> Self {
+        Self::single()
+    }
+}
+
 /// A single Discord gateway shard.
 pub struct Shard {
     token: String,
     intents: Intents,
+    shard_info: ShardInfo,
     event_tx: mpsc::Sender<DispatchEvent>,
     outbound_tx: Arc<broadcast::Sender<serde_json::Value>>,
 }
 
 impl Shard {
-    /// Create a new `Shard`.
+    /// Create a new `Shard` with default shard info (`[0, 1]`).
     pub fn new(
         token: impl Into<String>,
         intents: Intents,
+        event_tx: mpsc::Sender<DispatchEvent>,
+    ) -> Self {
+        Self::with_shard_info(token, intents, ShardInfo::single(), event_tx)
+    }
+
+    /// Create a new `Shard` with explicit shard info for multi-sharding.
+    ///
+    /// ```rust,ignore
+    /// use oxidian_gateway::shard::{Shard, ShardInfo};
+    ///
+    /// let shard_0 = Shard::with_shard_info(token, intents, ShardInfo::new(0, 2), tx_0);
+    /// let shard_1 = Shard::with_shard_info(token, intents, ShardInfo::new(1, 2), tx_1);
+    /// ```
+    pub fn with_shard_info(
+        token: impl Into<String>,
+        intents: Intents,
+        shard_info: ShardInfo,
         event_tx: mpsc::Sender<DispatchEvent>,
     ) -> Self {
         let (outbound_tx, _) = broadcast::channel(64);
         Self {
             token: token.into(),
             intents,
+            shard_info,
             event_tx,
             outbound_tx: Arc::new(outbound_tx),
         }
+    }
+
+    /// Return the shard info for this shard.
+    pub fn shard_info(&self) -> ShardInfo {
+        self.shard_info
     }
 
     /// Return a clone of the broadcast sender used for outbound gateway
@@ -88,6 +151,7 @@ impl Shard {
             match connection::connect(
                 &self.token,
                 self.intents,
+                Some(self.shard_info),
                 self.event_tx.clone(),
                 outbound_rx,
                 session.take(),

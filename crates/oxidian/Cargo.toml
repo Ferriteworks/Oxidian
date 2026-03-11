@@ -15,6 +15,14 @@ path = "../../examples/slash_commands.rs"
 name = "components_v2"
 path = "../../examples/components_v2.rs"
 
+[[example]]
+name = "low_level"
+path = "../../examples/low_level.rs"
+
+[[example]]
+name = "multi_shard"
+path = "../../examples/multi_shard.rs"
+
 [dependencies]
 oxidian-core         = { workspace = true }
 oxidian-gateway      = { workspace = true }

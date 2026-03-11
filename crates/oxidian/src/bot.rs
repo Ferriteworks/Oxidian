@@ -23,10 +23,10 @@
 use std::{future::Future, sync::Arc};
 
 use tokio::sync::mpsc;
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 use oxidian_core::{error::Result, intents::Intents, models::message::Message};
-use oxidian_gateway::{events::DispatchEvent, Shard};
+use oxidian_gateway::{events::DispatchEvent, Shard, ShardInfo};
 use oxidian_http::HttpClient;
 
 use crate::{
@@ -35,11 +35,29 @@ use crate::{
     handler::{DefaultHandler, EventHandler},
 };
 
+/// Shard count configuration.
+#[derive(Debug, Clone, Copy)]
+pub enum ShardCount {
+    /// A single shard (the default).
+    Single,
+    /// A fixed number of shards.
+    Fixed(u32),
+    /// Query Discord's `GET /gateway/bot` for the recommended shard count.
+    Auto,
+}
+
+impl Default for ShardCount {
+    fn default() -> Self {
+        Self::Single
+    }
+}
+
 /// The top-level Discord bot.
 pub struct Bot {
     token: String,
     intents: Intents,
     prefix: Option<String>,
+    shard_count: ShardCount,
     handler: Arc<dyn EventHandler>,
     commands: Arc<CommandRegistry>,
     modules: Arc<Vec<Arc<dyn Module>>>,
@@ -53,21 +71,61 @@ impl Bot {
 
     /// Connect to the Discord gateway and process events until the connection
     /// closes or the retry limit is exceeded.
+    ///
+    /// When multiple shards are configured, each shard runs in its own task
+    /// and all feed events into a single dispatch loop.
     pub async fn start(self) -> Result<()> {
         let http = Arc::new(HttpClient::new(&self.token)?);
 
-        let (event_tx, mut event_rx) = mpsc::channel::<DispatchEvent>(256);
-        let shard = Shard::new(self.token.clone(), self.intents, event_tx);
-
-        let gateway_handle = GatewayHandle::new(shard.gateway_sender());
-        let ctx = Context::new(Arc::clone(&http), gateway_handle);
-
-        // Drive the gateway on a separate task.
-        tokio::spawn(async move {
-            if let Err(e) = shard.start().await {
-                error!(error = %e, "gateway shard exited with an error");
+        let num_shards = match self.shard_count {
+            ShardCount::Single => 1u32,
+            ShardCount::Fixed(n) => n,
+            ShardCount::Auto => {
+                let resp = http.get_gateway_bot().await?;
+                let recommended = resp["shards"].as_u64().unwrap_or(1) as u32;
+                info!(recommended, "auto-shard: Discord recommends {recommended} shard(s)");
+                recommended.max(1)
             }
-        });
+        };
+
+        let (event_tx, mut event_rx) = mpsc::channel::<DispatchEvent>(256 * num_shards as usize);
+
+        // Spawn all shards. We share a single outbound broadcast per shard
+        // (voice state updates etc. are shard-specific) but a single HTTP
+        // client and dispatch loop.
+        //
+        // For single-shard (the common case), this is identical to before.
+        let mut gateway_handles = Vec::with_capacity(num_shards as usize);
+        for shard_id in 0..num_shards {
+            let shard_info = if num_shards == 1 {
+                ShardInfo::single()
+            } else {
+                ShardInfo::new(shard_id, num_shards)
+            };
+            let shard = Shard::with_shard_info(
+                self.token.clone(),
+                self.intents,
+                shard_info,
+                event_tx.clone(),
+            );
+            gateway_handles.push(shard.gateway_sender());
+            let shard_id_log = shard_id;
+            tokio::spawn(async move {
+                if let Err(e) = shard.start().await {
+                    error!(shard = shard_id_log, error = %e, "shard exited with an error");
+                }
+            });
+            // Discord requires a 5-second delay between IDENTIFY requests for
+            // multi-shard bots.
+            if num_shards > 1 && shard_id + 1 < num_shards {
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            }
+        }
+
+        // Use the first shard's gateway handle for Context. For multi-shard
+        // bots doing voice, you'll want low-level per-shard contexts instead.
+        let gateway_handle = GatewayHandle::new(gateway_handles.remove(0));
+        let ctx = Context::new(Arc::clone(&http), gateway_handle);
 
         // Dispatch events until the shard drops its sender side.
         while let Some(event) = event_rx.recv().await {
@@ -95,6 +153,7 @@ pub struct BotBuilder {
     token: String,
     intents: Intents,
     prefix: Option<String>,
+    shard_count: ShardCount,
     handler: Option<Arc<dyn EventHandler>>,
     commands: CommandRegistry,
     modules: Vec<Arc<dyn Module>>,
@@ -107,6 +166,7 @@ impl BotBuilder {
             token: token.into(),
             intents: Intents::empty(),
             prefix: None,
+            shard_count: ShardCount::default(),
             handler: None,
             commands: CommandRegistry::new(),
             modules: Vec::new(),
@@ -129,6 +189,45 @@ impl BotBuilder {
     /// Set the prefix that triggers registered commands (e.g. `"!"`).
     pub fn prefix(mut self, prefix: impl Into<String>) -> Self {
         self.prefix = Some(prefix.into());
+        self
+    }
+
+    /// Run the bot with a fixed number of shards.
+    ///
+    /// Each shard runs in its own task and identifies with `[shard_id, num_shards]`.
+    /// Discord requires at least a 5-second gap between IDENTIFY requests, so
+    /// startup will take `(n - 1) * 5` seconds.
+    ///
+    /// ```rust,ignore
+    /// Bot::builder(token)
+    ///     .shards(2)
+    ///     .build()
+    ///     .start()
+    ///     .await?;
+    /// ```
+    pub fn shards(mut self, num_shards: u32) -> Self {
+        self.shard_count = if num_shards <= 1 {
+            ShardCount::Single
+        } else {
+            ShardCount::Fixed(num_shards)
+        };
+        self
+    }
+
+    /// Let Discord tell us how many shards to use (`GET /gateway/bot`).
+    ///
+    /// The recommended shard count is based on the bot's guild count.
+    /// Small bots will get 1 shard (identical to the default).
+    ///
+    /// ```rust,ignore
+    /// Bot::builder(token)
+    ///     .auto_shards()
+    ///     .build()
+    ///     .start()
+    ///     .await?;
+    /// ```
+    pub fn auto_shards(mut self) -> Self {
+        self.shard_count = ShardCount::Auto;
         self
     }
 
@@ -189,6 +288,7 @@ impl BotBuilder {
             token: self.token,
             intents: self.intents,
             prefix: self.prefix,
+            shard_count: self.shard_count,
             handler: self.handler.unwrap_or_else(|| Arc::new(DefaultHandler)),
             commands: Arc::new(self.commands),
             modules: Arc::new(self.modules),
@@ -196,7 +296,11 @@ impl BotBuilder {
     }
 }
 
-async fn dispatch(
+/// Dispatch a single gateway event to the appropriate handler/module.
+///
+/// This is the same dispatch logic used internally by [`Bot::start`]. Low-level
+/// users who run their own event loop can call this directly.
+pub async fn dispatch(
     event: DispatchEvent,
     ctx: Context,
     handler: Arc<dyn EventHandler>,
@@ -301,8 +405,14 @@ async fn dispatch(
                         None => handler.interaction(ctx, interaction).await,
                     }
                 }
-                // MessageComponent, ModalSubmit, Ping — fall through to the
-                // generic interaction handler.
+                InteractionType::MessageComponent | InteractionType::ModalSubmit => {
+                    for module in modules.iter() {
+                        module
+                            .handle_component(ctx.clone(), interaction.clone())
+                            .await;
+                    }
+                }
+                // Ping and any future types — fall through to the event handler.
                 _ => handler.interaction(ctx, interaction).await,
             }
         }

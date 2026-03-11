@@ -41,7 +41,10 @@ pub struct GatewayHandle {
 }
 
 impl GatewayHandle {
-    pub(crate) fn new(
+    /// Create a new `GatewayHandle` from a broadcast sender.
+    ///
+    /// This is useful when building a custom event loop without `Bot`.
+    pub fn new(
         tx: Arc<tokio::sync::broadcast::Sender<serde_json::Value>>,
     ) -> Self {
         Self { tx }
@@ -101,7 +104,10 @@ pub struct Context {
 }
 
 impl Context {
-    pub(crate) fn new(http: Arc<HttpClient>, gateway: GatewayHandle) -> Self {
+    /// Create a new `Context`.
+    ///
+    /// This is useful when building a custom event loop without `Bot`.
+    pub fn new(http: Arc<HttpClient>, gateway: GatewayHandle) -> Self {
         Self { http, gateway }
     }
 

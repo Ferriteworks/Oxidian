@@ -32,6 +32,12 @@ pub use oxidian_core::error::{Error, Result};
 /// Re-export [`Shard`] at crate root for users who want direct gateway access.
 pub use oxidian_gateway::Shard;
 
+/// Re-export [`ShardInfo`] for multi-shard deployments.
+pub use oxidian_gateway::ShardInfo;
+
+/// Re-export [`DispatchEvent`] for low-level event loop usage.
+pub use oxidian_gateway::events::DispatchEvent;
+
 /// Re-export [`HttpClient`] at crate root.
 pub use oxidian_http::HttpClient;
 
@@ -53,8 +59,8 @@ pub mod context;
 /// [`EventHandler`] trait for receiving gateway events.
 pub mod handler;
 
-pub use bot::{Bot, BotBuilder};
-pub use command::{Command, Module};
+pub use bot::{dispatch, Bot, BotBuilder, ShardCount};
+pub use command::{Command, Module, CommandRegistry};
 pub use context::{Context, GatewayHandle};
 pub use handler::EventHandler;
 

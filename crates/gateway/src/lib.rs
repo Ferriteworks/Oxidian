@@ -48,4 +48,4 @@ pub use events::{
     ThreadMemberUpdateData, ThreadMembersUpdateData, TypingStartData, UnavailableGuild,
     VoiceServerUpdateData, VoiceStateUpdateData, WebhooksUpdateData,
 };
-pub use shard::Shard;
+pub use shard::{Shard, ShardInfo};

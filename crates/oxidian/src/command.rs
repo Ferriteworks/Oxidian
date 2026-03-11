@@ -160,6 +160,11 @@ pub trait Module: Send + Sync + 'static {
     /// Called when an autocomplete interaction arrives for a command this
     /// module owns (matched by [`slash_commands`](Self::slash_commands) name).
     async fn handle_autocomplete(&self, _ctx: Context, _interaction: Interaction) {}
+
+    /// Called when a message component (button, select menu) or modal
+    /// submission arrives. Broadcast to **all** modules so each can decide
+    /// whether to handle the `custom_id`.
+    async fn handle_component(&self, _ctx: Context, _interaction: Interaction) {}
 }
 
 /// Registry mapping command names to their handler functions.
