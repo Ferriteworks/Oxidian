@@ -240,6 +240,60 @@ async fn dispatch(
                 None => handler.interaction(ctx, interaction).await,
             }
         }
+        DispatchEvent::Resumed => {
+            handler.resumed(ctx).await;
+        }
+        DispatchEvent::MessageUpdate(msg) => {
+            handler.message_update(ctx, msg).await;
+        }
+        DispatchEvent::MessageDeleteBulk(data) => {
+            handler.message_delete_bulk(ctx, data).await;
+        }
+        DispatchEvent::MessageReactionAdd(data) => {
+            handler.message_reaction_add(ctx, data).await;
+        }
+        DispatchEvent::MessageReactionRemove(data) => {
+            handler.message_reaction_remove(ctx, data).await;
+        }
+        DispatchEvent::MessageReactionRemoveAll(data) => {
+            handler.message_reaction_remove_all(ctx, data).await;
+        }
+        DispatchEvent::MessageReactionRemoveEmoji(data) => {
+            handler.message_reaction_remove_emoji(ctx, data).await;
+        }
+        DispatchEvent::GuildMemberAdd(data) => {
+            handler.guild_member_add(ctx, data).await;
+        }
+        DispatchEvent::GuildMemberRemove(data) => {
+            handler.guild_member_remove(ctx, data).await;
+        }
+        DispatchEvent::GuildBanAdd(data) => {
+            handler.guild_ban_add(ctx, data).await;
+        }
+        DispatchEvent::GuildBanRemove(data) => {
+            handler.guild_ban_remove(ctx, data).await;
+        }
+        DispatchEvent::GuildRoleCreate(data) => {
+            handler.guild_role_create(ctx, data).await;
+        }
+        DispatchEvent::GuildRoleUpdate(data) => {
+            handler.guild_role_update(ctx, data).await;
+        }
+        DispatchEvent::GuildRoleDelete(data) => {
+            handler.guild_role_delete(ctx, data).await;
+        }
+        DispatchEvent::ChannelCreate(channel) => {
+            handler.channel_create(ctx, channel).await;
+        }
+        DispatchEvent::ChannelUpdate(channel) => {
+            handler.channel_update(ctx, channel).await;
+        }
+        DispatchEvent::ChannelDelete(channel) => {
+            handler.channel_delete(ctx, channel).await;
+        }
+        DispatchEvent::TypingStart(data) => {
+            handler.typing_start(ctx, data).await;
+        }
         DispatchEvent::VoiceStateUpdate(state) => {
             handler.voice_state_update(ctx, state).await;
         }

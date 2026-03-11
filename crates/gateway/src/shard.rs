@@ -8,7 +8,7 @@ use oxidian_core::{
     intents::Intents,
 };
 
-use crate::{connection, events::DispatchEvent};
+use crate::{connection::{self, SessionState}, events::DispatchEvent};
 
 /// A single Discord gateway shard.
 pub struct Shard {
@@ -47,9 +47,10 @@ impl Shard {
     pub async fn start(&self) -> Result<(), OxidianError> {
         const MAX_RETRIES: u32 = 5;
         let mut attempts = 0u32;
+        let mut session: Option<SessionState> = None;
 
         loop {
-            info!(attempt = attempts + 1, "starting gateway session");
+            info!(attempt = attempts + 1, resuming = session.is_some(), "starting gateway session");
 
             // Subscribe before each connection so the new socket drains
             // outbound messages sent during the lifetime of that session.
@@ -60,13 +61,31 @@ impl Shard {
                 self.intents,
                 self.event_tx.clone(),
                 outbound_rx,
+                session.take(),
             ).await {
-                Ok(()) => {
+                Ok(None) => {
                     info!("gateway connection closed cleanly");
                     return Ok(());
                 }
+                Ok(Some(state)) => {
+                    // Gateway sent op 7 or op 9 (resumable) — reconnect and resume.
+                    attempts += 1;
+                    if attempts >= MAX_RETRIES {
+                        error!(attempts, "exceeded maximum gateway reconnect attempts");
+                        return Err(GatewayError::Connection(
+                            format!("gave up after {MAX_RETRIES} reconnect attempts"),
+                        )
+                        .into());
+                    }
+                    let delay = std::time::Duration::from_millis(500 * u64::from(attempts));
+                    warn!(delay_ms = delay.as_millis(), session_id = %state.session_id, "reconnecting to resume session");
+                    tokio::time::sleep(delay).await;
+                    session = Some(state);
+                }
                 Err(OxidianError::Gateway(GatewayError::SessionInvalidated { resumable: false }))
                 | Err(OxidianError::Gateway(GatewayError::Connection(_))) => {
+                    // Non-resumable — start a fresh session after backoff.
+                    session = None;
                     attempts += 1;
                     if attempts >= MAX_RETRIES {
                         error!(attempts, "exceeded maximum gateway reconnect attempts");
@@ -78,7 +97,7 @@ impl Shard {
                     let backoff = std::time::Duration::from_secs(2u64.pow(attempts.min(6)));
                     warn!(
                         backoff_secs = backoff.as_secs(),
-                        "transient error — reconnecting after backoff"
+                        "transient error — reconnecting with fresh Identify after backoff"
                     );
                     tokio::time::sleep(backoff).await;
                 }

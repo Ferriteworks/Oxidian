@@ -10,7 +10,14 @@ pub mod opcodes;
 pub mod shard;
 
 pub use events::{
-    DispatchEvent, ReadyData, MessageDeleteData,
+    DispatchEvent, ReadyData,
+    MessageDeleteData, MessageDeleteBulkData,
+    ReactionData, ReactionEmoji, ReactionRemoveAllData, ReactionRemoveEmojiData,
+    GuildMemberAddData, GuildMemberRemoveData,
+    GuildBanData,
+    GuildRoleData, GuildRoleDeleteData,
+    TypingStartData,
     VoiceStateUpdateData, VoiceServerUpdateData,
 };
+pub use connection::SessionState;
 pub use shard::Shard;

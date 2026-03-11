@@ -6,19 +6,37 @@ use tracing::{debug, error, info, warn};
 use oxidian_core::{
     error::{Error as OxidianError, GatewayError},
     intents::Intents,
-    models::{guild::Guild, interaction::Interaction, message::Message as DiscordMessage},
+    models::{channel::Channel, guild::Guild, interaction::Interaction, message::Message as DiscordMessage},
 };
 
 use crate::{
     events::{
         DispatchEvent, GatewayPayload, HelloData, MessageDeleteData, ReadyData,
         UnavailableGuild, VoiceServerUpdateData, VoiceStateUpdateData,
+        GuildMemberAddData, GuildMemberRemoveData, GuildBanData, GuildRoleData,
+        GuildRoleDeleteData, MessageDeleteBulkData, ReactionData,
+        ReactionRemoveAllData, ReactionRemoveEmojiData, TypingStartData,
     },
     heartbeat::{self, HeartbeatMessage, WsMessageTx},
     opcodes::Opcode,
 };
 
 const GATEWAY_URL: &str = "wss://gateway.discord.gg/?v=10&encoding=json";
+
+/// Enough information to resume a disconnected gateway session.
+///
+/// Returned by [`connect`] when the connection closes in a resumable state
+/// (op 7 Reconnect or op 9 InvalidSession with `d = true`).  Pass it back
+/// into the next [`connect`] call to send a Resume instead of Identify.
+#[derive(Debug, Clone)]
+pub struct SessionState {
+    /// The session ID received in the `READY` payload.
+    pub session_id: String,
+    /// The resume URL received in the `READY` payload.
+    pub resume_gateway_url: String,
+    /// The last sequence number processed in this session.
+    pub last_seq: Option<u64>,
+}
 
 type WsSink = futures_util::stream::SplitSink<
     tokio_tungstenite::WebSocketStream<
@@ -36,18 +54,30 @@ type WsStream = futures_util::stream::SplitStream<
 /// Open a WebSocket connection to the Discord gateway and drive the event loop
 /// until the connection closes or an unrecoverable error is encountered.
 ///
-/// Parsed dispatch events are forwarded on `event_tx`. Returns when the
-/// connection closes cleanly or on an error that the caller should handle
-/// (e.g. by reconnecting with exponential back-off via [`crate::Shard`]).
+/// - Pass `session = None` to start a fresh session (sends Identify).
+/// - Pass `session = Some(state)` to attempt a resume (connects to the
+///   resume URL and sends Resume/op 6 instead of Identify).
+///
+/// Returns `Ok(Some(state))` when the connection closes in a resumable state
+/// (op 7 or op 9 resumable).  The caller should reconnect and pass the
+/// returned state back in.
+///
+/// Returns `Ok(None)` on a clean close.
+/// Returns `Err` on a non-resumable invalidation or a fatal error.
 pub async fn connect(
     token: &str,
     intents: Intents,
     event_tx: mpsc::Sender<DispatchEvent>,
     mut outbound_rx: broadcast::Receiver<serde_json::Value>,
-) -> Result<(), OxidianError> {
-    info!(url = GATEWAY_URL, "connecting to Discord gateway");
+    session: Option<SessionState>,
+) -> Result<Option<SessionState>, OxidianError> {
+    let gateway_url = match session.as_ref() {
+        Some(s) => format!("{}/?v=10&encoding=json", s.resume_gateway_url),
+        None => GATEWAY_URL.to_owned(),
+    };
+    info!(url = %gateway_url, "connecting to Discord gateway");
 
-    let (ws, _) = connect_async(GATEWAY_URL)
+    let (ws, _) = connect_async(gateway_url.as_str())
         .await
         .map_err(|e| GatewayError::Connection(e.to_string()))?;
 
@@ -56,6 +86,10 @@ pub async fn connect(
     // Sequence number — written by the event loop, read by the heartbeat task.
     let (seq_tx, seq_rx) = watch::channel::<Option<u64>>(None);
 
+    // Track session identifiers so we can build a resume payload if needed.
+    let mut current_session: Option<(String, String)> = session
+        .as_ref()
+        .map(|s| (s.session_id.clone(), s.resume_gateway_url.clone()));
 
     let hello = recv_hello(&mut stream).await?;
     info!(interval_ms = hello.heartbeat_interval, "received Hello from gateway");
@@ -84,8 +118,13 @@ pub async fn connect(
         });
     }
 
-    send_identify(&write_tx, token, intents).await?;
-    info!("sent Identify");
+    if let Some(ref s) = session {
+        send_resume(&write_tx, token, &s.session_id, s.last_seq).await?;
+        info!(session_id = %s.session_id, "sent Resume");
+    } else {
+        send_identify(&write_tx, token, intents).await?;
+        info!("sent Identify");
+    }
 
     let hb_tx = heartbeat::spawn(hello.heartbeat_interval, seq_rx, write_tx.clone());
 
@@ -126,6 +165,15 @@ pub async fn connect(
         match op {
             Some(Opcode::Dispatch) => {
                 if let Some(event) = parse_dispatch(payload) {
+                    // Capture session identifiers from READY (fresh connect or
+                    // failed resume that triggered a new session).
+                    if let DispatchEvent::Ready(ref ready) = event {
+                        current_session = Some((
+                            ready.session_id.clone(),
+                            ready.resume_gateway_url.clone(),
+                        ));
+                        info!(session_id = %ready.session_id, "session established");
+                    }
                     // Drop the event if the receiver is gone (bot is shutting down).
                     if event_tx.send(event).await.is_err() {
                         break;
@@ -143,12 +191,14 @@ pub async fn connect(
                 let _ = write_tx.send(msg).await;
             }
             Some(Opcode::Reconnect) => {
-                info!("gateway requested reconnect — restarting session");
+                info!("gateway requested reconnect (op 7) — will attempt resume");
                 let _ = hb_tx.send(HeartbeatMessage::Stop).await;
-                return Err(GatewayError::Connection(
-                    "gateway requested reconnect (op 7)".to_owned(),
-                )
-                .into());
+                let state = current_session.map(|(session_id, resume_gateway_url)| SessionState {
+                    session_id,
+                    resume_gateway_url,
+                    last_seq: *seq_tx.borrow(),
+                });
+                return Ok(state);
             }
             Some(Opcode::InvalidSession) => {
                 let resumable = payload
@@ -158,7 +208,16 @@ pub async fn connect(
                     .unwrap_or(false);
                 warn!(resumable, "gateway invalidated the session");
                 let _ = hb_tx.send(HeartbeatMessage::Stop).await;
-                return Err(GatewayError::SessionInvalidated { resumable }.into());
+                if resumable {
+                    let state = current_session.map(|(session_id, resume_gateway_url)| SessionState {
+                        session_id,
+                        resume_gateway_url,
+                        last_seq: *seq_tx.borrow(),
+                    });
+                    return Ok(state);
+                } else {
+                    return Err(GatewayError::SessionInvalidated { resumable: false }.into());
+                }
             }
             Some(other) => {
                 debug!(op = ?other, "unhandled gateway opcode");
@@ -170,7 +229,7 @@ pub async fn connect(
     }
 
     let _ = hb_tx.send(HeartbeatMessage::Stop).await;
-    Ok(())
+    Ok(None)
 }
 
 
@@ -244,6 +303,33 @@ async fn send_identify(
         })
 }
 
+/// Send a Resume payload (op 6) through the write channel.
+async fn send_resume(
+    write_tx: &WsMessageTx,
+    token: &str,
+    session_id: &str,
+    seq: Option<u64>,
+) -> Result<(), OxidianError> {
+    let payload = serde_json::json!({
+        "op": Opcode::Resume as u8,
+        "d": {
+            "token": format!("Bot {token}"),
+            "session_id": session_id,
+            "seq": seq,
+        }
+    });
+    let text = serde_json::to_string(&payload).map_err(OxidianError::Serialization)?;
+    write_tx
+        .send(Message::Text(text.into()))
+        .await
+        .map_err(|_| {
+            GatewayError::Connection(
+                "write channel closed before Resume was sent".to_owned(),
+            )
+            .into()
+        })
+}
+
 /// Parse a raw dispatch payload into a typed [`DispatchEvent`].
 fn parse_dispatch(payload: GatewayPayload) -> Option<DispatchEvent> {
     let name = payload.t.as_deref().unwrap_or("");
@@ -266,6 +352,10 @@ fn parse_dispatch(payload: GatewayPayload) -> Option<DispatchEvent> {
                 None
             }
         },
+        "RESUMED" => {
+            info!("session resumed successfully");
+            Some(DispatchEvent::Resumed)
+        }
         "MESSAGE_CREATE" => match serde_json::from_value::<DiscordMessage>(data) {
             Ok(msg) => {
                 debug!(
@@ -280,10 +370,52 @@ fn parse_dispatch(payload: GatewayPayload) -> Option<DispatchEvent> {
                 None
             }
         },
+        "MESSAGE_UPDATE" => match serde_json::from_value::<DiscordMessage>(data) {
+            Ok(msg) => Some(DispatchEvent::MessageUpdate(msg)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse MESSAGE_UPDATE payload");
+                None
+            }
+        },
         "MESSAGE_DELETE" => match serde_json::from_value::<MessageDeleteData>(data) {
             Ok(d) => Some(DispatchEvent::MessageDelete(d)),
             Err(e) => {
                 warn!(error = %e, "failed to parse MESSAGE_DELETE payload");
+                None
+            }
+        },
+        "MESSAGE_DELETE_BULK" => match serde_json::from_value::<MessageDeleteBulkData>(data) {
+            Ok(d) => Some(DispatchEvent::MessageDeleteBulk(d)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse MESSAGE_DELETE_BULK payload");
+                None
+            }
+        },
+        "MESSAGE_REACTION_ADD" => match serde_json::from_value::<ReactionData>(data) {
+            Ok(d) => Some(DispatchEvent::MessageReactionAdd(d)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse MESSAGE_REACTION_ADD payload");
+                None
+            }
+        },
+        "MESSAGE_REACTION_REMOVE" => match serde_json::from_value::<ReactionData>(data) {
+            Ok(d) => Some(DispatchEvent::MessageReactionRemove(d)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse MESSAGE_REACTION_REMOVE payload");
+                None
+            }
+        },
+        "MESSAGE_REACTION_REMOVE_ALL" => match serde_json::from_value::<ReactionRemoveAllData>(data) {
+            Ok(d) => Some(DispatchEvent::MessageReactionRemoveAll(d)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse MESSAGE_REACTION_REMOVE_ALL payload");
+                None
+            }
+        },
+        "MESSAGE_REACTION_REMOVE_EMOJI" => match serde_json::from_value::<ReactionRemoveEmojiData>(data) {
+            Ok(d) => Some(DispatchEvent::MessageReactionRemoveEmoji(d)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse MESSAGE_REACTION_REMOVE_EMOJI payload");
                 None
             }
         },
@@ -308,6 +440,83 @@ fn parse_dispatch(payload: GatewayPayload) -> Option<DispatchEvent> {
             Ok(g) => Some(DispatchEvent::GuildDelete(g)),
             Err(e) => {
                 warn!(error = %e, "failed to parse GUILD_DELETE payload");
+                None
+            }
+        },
+        "GUILD_MEMBER_ADD" => match serde_json::from_value::<GuildMemberAddData>(data) {
+            Ok(d) => Some(DispatchEvent::GuildMemberAdd(d)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse GUILD_MEMBER_ADD payload");
+                None
+            }
+        },
+        "GUILD_MEMBER_REMOVE" => match serde_json::from_value::<GuildMemberRemoveData>(data) {
+            Ok(d) => Some(DispatchEvent::GuildMemberRemove(d)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse GUILD_MEMBER_REMOVE payload");
+                None
+            }
+        },
+        "GUILD_BAN_ADD" => match serde_json::from_value::<GuildBanData>(data) {
+            Ok(d) => Some(DispatchEvent::GuildBanAdd(d)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse GUILD_BAN_ADD payload");
+                None
+            }
+        },
+        "GUILD_BAN_REMOVE" => match serde_json::from_value::<GuildBanData>(data) {
+            Ok(d) => Some(DispatchEvent::GuildBanRemove(d)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse GUILD_BAN_REMOVE payload");
+                None
+            }
+        },
+        "GUILD_ROLE_CREATE" => match serde_json::from_value::<GuildRoleData>(data) {
+            Ok(d) => Some(DispatchEvent::GuildRoleCreate(d)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse GUILD_ROLE_CREATE payload");
+                None
+            }
+        },
+        "GUILD_ROLE_UPDATE" => match serde_json::from_value::<GuildRoleData>(data) {
+            Ok(d) => Some(DispatchEvent::GuildRoleUpdate(d)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse GUILD_ROLE_UPDATE payload");
+                None
+            }
+        },
+        "GUILD_ROLE_DELETE" => match serde_json::from_value::<GuildRoleDeleteData>(data) {
+            Ok(d) => Some(DispatchEvent::GuildRoleDelete(d)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse GUILD_ROLE_DELETE payload");
+                None
+            }
+        },
+        "CHANNEL_CREATE" => match serde_json::from_value::<Channel>(data) {
+            Ok(c) => Some(DispatchEvent::ChannelCreate(c)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse CHANNEL_CREATE payload");
+                None
+            }
+        },
+        "CHANNEL_UPDATE" => match serde_json::from_value::<Channel>(data) {
+            Ok(c) => Some(DispatchEvent::ChannelUpdate(c)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse CHANNEL_UPDATE payload");
+                None
+            }
+        },
+        "CHANNEL_DELETE" => match serde_json::from_value::<Channel>(data) {
+            Ok(c) => Some(DispatchEvent::ChannelDelete(c)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse CHANNEL_DELETE payload");
+                None
+            }
+        },
+        "TYPING_START" => match serde_json::from_value::<TypingStartData>(data) {
+            Ok(d) => Some(DispatchEvent::TypingStart(d)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse TYPING_START payload");
                 None
             }
         },
