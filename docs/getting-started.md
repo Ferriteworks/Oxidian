@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide walks you through setting up a basic Discord bot with Oxidian from scratch. By the end you'll have a bot online that responds to a `!ping` command.
+This guide walks you through setting up a basic Discord bot with Oxidian from scratch. By the end you'll have a bot online that responds to a `!ping` prefix command and a `/ping` slash command.
 
 ## Prerequisites
 
@@ -19,15 +19,15 @@ Add Oxidian and the other required crates to `Cargo.toml`:
 
 ```toml
 [dependencies]
-oxidian    = { git = "https://github.com/KilledInAction/Oxidian" }
-tokio      = { version = "1", features = ["full"] }
+oxidian     = { git = "https://github.com/KilledInAction/Oxidian" }
+tokio       = { version = "1", features = ["full"] }
 async-trait = "0.1"
-tracing    = "0.1"
+tracing     = "0.1"
 ```
 
 ## Write the bot
 
-Replace `src/main.rs` with:
+### `src/main.rs`
 
 ```rust
 mod commands;
@@ -35,12 +35,8 @@ mod commands;
 use async_trait::async_trait;
 use tracing::info;
 
-use oxidian::{Bot, Context, EventHandler};
-use oxidian::core::models::message::Message;
+use oxidian::{Bot, Context, EventHandler, Intents};
 use oxidian::gateway::events::ReadyData;
-
-// GUILDS + GUILD_MESSAGES + MESSAGE_CONTENT
-const INTENTS: u64 = (1 << 0) | (1 << 9) | (1 << 15);
 
 struct MyHandler;
 
@@ -59,10 +55,10 @@ async fn main() {
         .expect("DISCORD_TOKEN must be set");
 
     Bot::builder(token)
-        .intents(INTENTS)
+        .intents(Intents::GUILDS | Intents::GUILD_MESSAGES | Intents::MESSAGE_CONTENT)
         .prefix("!")
         .handler(MyHandler)
-        .register_module(commands::ping::command())
+        .module(commands::FunModule)
         .build()
         .start()
         .await
@@ -70,23 +66,37 @@ async fn main() {
 }
 ```
 
-Then create `src/commands/mod.rs`:
+### `src/commands/mod.rs`
 
 ```rust
-pub mod ping;
-```
-
-And `src/commands/ping.rs`:
-
-```rust
-use oxidian::{command::Command, Context};
+use async_trait::async_trait;
+use oxidian::{command::{Command, Module}, ApplicationCommand, Context};
 use oxidian::core::models::message::Message;
+use oxidian::core::models::interaction::{Interaction, InteractionResponse};
+use oxidian::interactions::command::SlashCommandBuilder;
 
-pub fn command() -> Command {
-    Command::new("ping", |ctx: Context, msg: Message, _args| async move {
-        ctx.reply(&msg, "pong!").await?;
-        Ok(())
-    })
+pub struct FunModule;
+
+#[async_trait]
+impl Module for FunModule {
+    fn commands(&self) -> Vec<Command> {
+        vec![
+            Command::new("ping", |ctx: Context, msg: Message, _args| async move {
+                ctx.reply(&msg, "pong!").await?;
+                Ok(())
+            }),
+        ]
+    }
+
+    fn slash_commands(&self) -> Vec<ApplicationCommand> {
+        vec![SlashCommandBuilder::new("ping", "Replies with pong!").build()]
+    }
+
+    async fn handle_interaction(&self, ctx: Context, interaction: Interaction) {
+        ctx.respond(&interaction, InteractionResponse::message("pong! 🏓"))
+            .await
+            .ok();
+    }
 }
 ```
 
@@ -96,13 +106,36 @@ pub fn command() -> Command {
 DISCORD_TOKEN=your_token_here cargo run
 ```
 
-You should see `logged in as YourBot#0000!` in the console. Send `!ping` in any channel the bot can see and it will reply with `pong!`.
+You should see `logged in as YourBot#0000!` in the console.
+
+- Send `!ping` in any channel the bot can see → it replies `pong!` (prefix command).
+- Use `/ping` after you've synced slash commands (see below) → it replies `pong! 🏓`.
+
+## Syncing slash commands
+
+Discord only shows `/ping` in the command list after you register it. Add a sync call before `bot.start()`:
+
+```rust
+let bot = Bot::builder(token) /* ... */ .build();
+
+// Sync to a specific guild instantly during development
+let guild_id = Snowflake::from(YOUR_GUILD_ID);
+bot.http
+    .bulk_overwrite_guild_commands(guild_id, &[
+        SlashCommandBuilder::new("ping", "Replies with pong!").build(),
+    ])
+    .await
+    .expect("failed to sync commands");
+
+bot.start().await.expect("bot crashed");
+```
+
+Use `bulk_overwrite_global_commands` for production (takes up to an hour to propagate everywhere).
 
 ## What's happening
 
-- `Bot::builder` sets up the bot.
-- `.intents()` tells Discord which events to send. `MESSAGE_CONTENT` (bit 15) is a privileged intent — you need to enable it in the Developer Portal under your bot's settings.
-- `.prefix("!")` means any message starting with `!` gets checked against registered commands.
-- `.register_module()` loads a command from its own file — see [Commands](./commands.md) for more detail.
-- `EventHandler` is the trait you implement to react to gateway events like `READY`, `MESSAGE_CREATE`, or `GUILD_CREATE`.
-- `init_logging()` reads the `RUST_LOG` environment variable. Set `RUST_LOG=debug` if you want to see every gateway payload.
+- `Intents` is a bitflags type — combine constants with `|`. `MESSAGE_CONTENT` is a privileged intent that must be enabled in the Developer Portal under your bot settings.
+- `.module(FunModule)` registers all of `FunModule`'s prefix commands and stores it for slash routing.
+- When Discord sends an `INTERACTION_CREATE` event, Oxidian matches the command name against each module's `slash_commands()` list and calls `handle_interaction` on the matching module.
+- `init_logging()` reads `RUST_LOG`. Set `RUST_LOG=debug` to see every gateway payload.
+

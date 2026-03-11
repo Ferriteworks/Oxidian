@@ -3,14 +3,17 @@ use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc};
 use tracing::{error, info, warn};
 
-use oxidian_core::error::{Error as OxidianError, GatewayError};
+use oxidian_core::{
+    error::{Error as OxidianError, GatewayError},
+    intents::Intents,
+};
 
 use crate::{connection, events::DispatchEvent};
 
 /// A single Discord gateway shard.
 pub struct Shard {
     token: String,
-    intents: u64,
+    intents: Intents,
     event_tx: mpsc::Sender<DispatchEvent>,
     outbound_tx: Arc<broadcast::Sender<serde_json::Value>>,
 }
@@ -19,7 +22,7 @@ impl Shard {
     /// Create a new `Shard`.
     pub fn new(
         token: impl Into<String>,
-        intents: u64,
+        intents: Intents,
         event_tx: mpsc::Sender<DispatchEvent>,
     ) -> Self {
         let (outbound_tx, _) = broadcast::channel(64);

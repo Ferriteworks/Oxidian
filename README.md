@@ -2,14 +2,14 @@
 
 A Discord bot library for Rust. Async, modular, and built on [Tokio](https://tokio.rs).
 
-> **This is early-stage software.** The API will change, things will break, and there are features that aren't implemented yet. That said, the gateway connects, events fire, and prefix commands work. If you're building something and want to use Oxidian, expect to track main closely for now.
+> **This is early-stage software.** The API will change, things will break, and there are features that aren't implemented yet. That said, the gateway connects, events fire, prefix commands work, and slash commands route through the module system.
 
 ## What it does
 
 - Connects to the Discord gateway over WebSocket (with heartbeating, reconnects, and exponential backoff)
-- Delivers typed gateway events to your handler (`READY`, `MESSAGE_CREATE`, `GUILD_CREATE`, and more)
+- Delivers typed gateway events to your handler (`READY`, `MESSAGE_CREATE`, `GUILD_CREATE`, `INTERACTION_CREATE`, and more)
 - Handles Discord's REST rate limits automatically — per-route buckets, global limits, and 429 retries
-- Ships a prefix command system so you can organize commands as individual files
+- Ships a **module system** where a single struct groups prefix commands, slash command definitions, and an interaction handler together
 
 ## Quick example
 
@@ -17,11 +17,8 @@ A Discord bot library for Rust. Async, modular, and built on [Tokio](https://tok
 mod commands;
 
 use async_trait::async_trait;
-use oxidian::{Bot, Context, EventHandler};
+use oxidian::{Bot, Context, EventHandler, Intents};
 use oxidian::gateway::events::ReadyData;
-
-// GUILDS | GUILD_MESSAGES | MESSAGE_CONTENT
-const INTENTS: u64 = (1 << 0) | (1 << 9) | (1 << 15);
 
 struct Handler;
 
@@ -38,10 +35,10 @@ async fn main() {
     let token = std::env::var("DISCORD_TOKEN").unwrap();
 
     Bot::builder(token)
-        .intents(INTENTS)
+        .intents(Intents::GUILDS | Intents::GUILD_MESSAGES | Intents::MESSAGE_CONTENT)
         .prefix("!")
         .handler(Handler)
-        .register_module(commands::ping::command())
+        .module(commands::FunModule)
         .build()
         .start()
         .await
@@ -49,25 +46,44 @@ async fn main() {
 }
 ```
 
-Each command lives in its own file:
+`FunModule` is a struct that implements [`Module`](crates/oxidian/src/command.rs) — it can define prefix commands, declare slash commands, and handle slash command interactions all in one place:
 
 ```rust
-// commands/ping.rs
-use oxidian::{command::Command, Context};
-use oxidian::core::models::message::Message;
+use async_trait::async_trait;
+use oxidian::{command::{Command, Module}, ApplicationCommand, Context};
+use oxidian::core::models::interaction::{Interaction, InteractionResponse};
+use oxidian::interactions::command::SlashCommandBuilder;
 
-pub fn command() -> Command {
-    Command::new("ping", |ctx: Context, msg: Message, _args| async move {
-        ctx.reply(&msg, "pong!").await?;
-        Ok(())
-    })
+pub struct FunModule;
+
+#[async_trait]
+impl Module for FunModule {
+    fn commands(&self) -> Vec<Command> {
+        vec![
+            Command::new("ping", |ctx, msg, _args| async move {
+                ctx.reply(&msg, "pong!").await?;
+                Ok(())
+            }),
+        ]
+    }
+
+    fn slash_commands(&self) -> Vec<ApplicationCommand> {
+        vec![SlashCommandBuilder::new("ping", "Replies with pong!").build()]
+    }
+
+    async fn handle_interaction(&self, ctx: Context, interaction: Interaction) {
+        ctx.respond(&interaction, InteractionResponse::message("pong! 🏓"))
+            .await
+            .ok();
+    }
 }
 ```
+
 
 ## Documentation
 
 - [Getting started](docs/getting-started.md) — step-by-step setup from scratch
-- [Commands](docs/commands.md) — the prefix command system and module pattern
+- [Commands & modules](docs/commands.md) — prefix commands, slash commands, and the module pattern
 - [Event handling](docs/event-handling.md) — implementing `EventHandler` and working with intents
 - [Architecture](docs/architecture.md) — how the crates fit together internally
 
@@ -75,12 +91,12 @@ pub fn command() -> Command {
 
 ```
 crates/
-  core/          ← error types, models (User, Guild, Message, …), Snowflake
+  core/          ← error types, models (User, Guild, Message, Interaction, …), Snowflake, Intents
   gateway/       ← WebSocket connection, heartbeat, typed events
-  http/          ← REST client with rate limiting
-  interactions/  ← slash commands (early)
-  voice/         ← voice (early)
-  oxidian/       ← re-exports everything, Bot/EventHandler/Context live here
+  http/          ← REST client with rate limiting + bulk command sync helpers
+  interactions/  ← ApplicationCommand, SlashCommandBuilder, components
+  voice/         ← voice gateway + DAVE E2EE protocol
+  oxidian/       ← re-exports everything, Bot/EventHandler/Context/Module live here
 testBot/         ← example bot used for manual testing
 ```
 
@@ -91,10 +107,13 @@ testBot/         ← example bot used for manual testing
 | Gateway connection + heartbeat | ✅ working |
 | Typed dispatch events | ✅ working |
 | Prefix commands + module pattern | ✅ working |
+| Slash commands (define, sync, route, respond) | ✅ working |
 | HTTP client + rate limiting | ✅ working |
-| Core models (User, Guild, Channel, Message, Member, Role) | ✅ working |
-| Slash commands | 🔧 scaffolded, not functional |
-| Voice | 🔧 scaffolded, not functional |
+| Bulk-overwrite global / guild commands | ✅ working |
+| Core models (User, Guild, Channel, Message, Member, Role, …) | ✅ working |
+| `Intents` bitflags type | ✅ working |
+| Voice gateway scaffolding | 🔧 scaffolded, not functional |
+| DAVE E2EE voice protocol | 🔧 scaffolded, not functional |
 | Resume / session recovery | ⏳ not started |
 | Sharding | ⏳ not started |
 

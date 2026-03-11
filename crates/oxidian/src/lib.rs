@@ -16,6 +16,9 @@ pub use oxidian_http::HttpClient;
 /// Re-export [`Snowflake`] at crate root.
 pub use oxidian_core::snowflake::Snowflake;
 
+/// Re-export [`Intents`] at crate root.
+pub use oxidian_core::intents::Intents;
+
 /// Re-export [`VoiceConnection`] at crate root.
 pub use oxidian_voice::VoiceConnection;
 
@@ -29,7 +32,9 @@ pub mod command;
 pub mod bot;
 
 pub use bot::{Bot, BotBuilder};
-pub use command::Command;
+pub use command::{Command, Module};
+/// Re-export [`ApplicationCommand`] at crate root for use in [`Module::slash_commands`].
+pub use oxidian_interactions::command::ApplicationCommand;
 pub use context::{Context, GatewayHandle};
 pub use handler::EventHandler;
 

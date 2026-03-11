@@ -273,6 +273,39 @@ impl HttpClient {
         self.request(Route::CreateGuildCommand { application_id, guild_id }, Some(body)).await
     }
 
+    /// Bulk overwrite **all** global commands.
+    ///
+    /// `body` must be a JSON array of application command objects. Commands not
+    /// in the array are deleted; commands in the array are created or updated.
+    ///
+    /// This is the recommended way to sync your command definitions with
+    /// Discord. Equivalent to `PUT /applications/{app}/commands`.
+    pub async fn bulk_overwrite_global_commands(
+        &self,
+        application_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::BulkOverwriteGlobalCommands { application_id }, Some(body)).await
+    }
+
+    /// Bulk overwrite **all** guild-scoped commands.
+    ///
+    /// `body` must be a JSON array of application command objects. Commands not
+    /// in the array are deleted; commands in the array are created or updated.
+    ///
+    /// Equivalent to `PUT /applications/{app}/guilds/{guild}/commands`.
+    pub async fn bulk_overwrite_guild_commands(
+        &self,
+        application_id: oxidian_core::snowflake::Snowflake,
+        guild_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(
+            Route::BulkOverwriteGuildCommands { application_id, guild_id },
+            Some(body),
+        ).await
+    }
+
     /// Delete a guild-scoped command by ID.
     pub async fn delete_guild_command(
         &self,

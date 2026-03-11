@@ -89,6 +89,10 @@ pub enum Route {
     CreateGlobalCommand {
         application_id: Snowflake,
     },
+    /// `PUT /applications/{application_id}/commands` — bulk overwrite all global commands.
+    BulkOverwriteGlobalCommands {
+        application_id: Snowflake,
+    },
     /// `DELETE /applications/{application_id}/commands/{command_id}`
     DeleteGlobalCommand {
         application_id: Snowflake,
@@ -101,6 +105,11 @@ pub enum Route {
     },
     /// `POST /applications/{application_id}/guilds/{guild_id}/commands`
     CreateGuildCommand {
+        application_id: Snowflake,
+        guild_id: Snowflake,
+    },
+    /// `PUT /applications/{application_id}/guilds/{guild_id}/commands` — bulk overwrite all guild commands.
+    BulkOverwriteGuildCommands {
         application_id: Snowflake,
         guild_id: Snowflake,
     },
@@ -136,6 +145,9 @@ impl Route {
             | Self::CreateGuildCommand { .. }
             | Self::CreateInteractionResponse { .. } => Method::Post,
 
+            Self::BulkOverwriteGlobalCommands { .. }
+            | Self::BulkOverwriteGuildCommands { .. } => Method::Put,
+
             Self::DeleteMessage { .. }
             | Self::DeleteGlobalCommand { .. }
             | Self::DeleteGuildCommand { .. } => Method::Delete,
@@ -162,11 +174,15 @@ impl Route {
                 format!("{base}/applications/{application_id}/commands"),
             Self::CreateGlobalCommand { application_id } =>
                 format!("{base}/applications/{application_id}/commands"),
+            Self::BulkOverwriteGlobalCommands { application_id } =>
+                format!("{base}/applications/{application_id}/commands"),
             Self::DeleteGlobalCommand { application_id, command_id } =>
                 format!("{base}/applications/{application_id}/commands/{command_id}"),
             Self::GetGuildCommands { application_id, guild_id } =>
                 format!("{base}/applications/{application_id}/guilds/{guild_id}/commands"),
             Self::CreateGuildCommand { application_id, guild_id } =>
+                format!("{base}/applications/{application_id}/guilds/{guild_id}/commands"),
+            Self::BulkOverwriteGuildCommands { application_id, guild_id } =>
                 format!("{base}/applications/{application_id}/guilds/{guild_id}/commands"),
             Self::DeleteGuildCommand { application_id, guild_id, command_id } =>
                 format!("{base}/applications/{application_id}/guilds/{guild_id}/commands/{command_id}"),
@@ -199,11 +215,13 @@ impl Route {
 
             Self::GetGlobalCommands { application_id }
             | Self::CreateGlobalCommand { application_id }
+            | Self::BulkOverwriteGlobalCommands { application_id }
             | Self::DeleteGlobalCommand { application_id, .. } =>
                 format!("application:{application_id}:commands"),
 
             Self::GetGuildCommands { application_id, guild_id }
             | Self::CreateGuildCommand { application_id, guild_id }
+            | Self::BulkOverwriteGuildCommands { application_id, guild_id }
             | Self::DeleteGuildCommand { application_id, guild_id, .. } =>
                 format!("application:{application_id}:guild:{guild_id}:commands"),
 

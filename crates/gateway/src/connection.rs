@@ -5,6 +5,7 @@ use tracing::{debug, error, info, warn};
 
 use oxidian_core::{
     error::{Error as OxidianError, GatewayError},
+    intents::Intents,
     models::{guild::Guild, interaction::Interaction, message::Message as DiscordMessage},
 };
 
@@ -40,7 +41,7 @@ type WsStream = futures_util::stream::SplitStream<
 /// (e.g. by reconnecting with exponential back-off via [`crate::Shard`]).
 pub async fn connect(
     token: &str,
-    intents: u64,
+    intents: Intents,
     event_tx: mpsc::Sender<DispatchEvent>,
     mut outbound_rx: broadcast::Receiver<serde_json::Value>,
 ) -> Result<(), OxidianError> {
@@ -216,13 +217,13 @@ async fn recv_hello(stream: &mut WsStream) -> Result<HelloData, OxidianError> {
 async fn send_identify(
     write_tx: &WsMessageTx,
     token: &str,
-    intents: u64,
+    intents: Intents,
 ) -> Result<(), OxidianError> {
     let payload = serde_json::json!({
         "op": Opcode::Identify as u8,
         "d": {
             "token": format!("Bot {token}"),
-            "intents": intents,
+            "intents": intents.bits(),
             "properties": {
                 "os": std::env::consts::OS,
                 "browser": "oxidian",

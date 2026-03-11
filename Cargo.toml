@@ -6,7 +6,7 @@ members = [
     "crates/interactions",
     "crates/voice",
     "crates/oxidian",
-    "test_bot",
+    "testBot",
 ]
 resolver = "2"
 

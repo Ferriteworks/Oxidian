@@ -5,13 +5,14 @@ use tracing::{debug, error};
 
 use oxidian_core::{
     error::Result,
+    intents::Intents,
     models::message::Message,
 };
 use oxidian_gateway::{events::DispatchEvent, Shard};
 use oxidian_http::HttpClient;
 
 use crate::{
-    command::{Command, CommandRegistry},
+    command::{Command, CommandRegistry, Module},
     context::{Context, GatewayHandle},
     handler::{DefaultHandler, EventHandler},
 };
@@ -19,10 +20,11 @@ use crate::{
 /// The top-level Discord bot.
 pub struct Bot {
     token: String,
-    intents: u64,
+    intents: Intents,
     prefix: Option<String>,
     handler: Arc<dyn EventHandler>,
     commands: Arc<CommandRegistry>,
+    modules: Arc<Vec<Arc<dyn Module>>>,
 }
 
 impl Bot {
@@ -54,10 +56,11 @@ impl Bot {
             let ctx = ctx.clone();
             let handler = Arc::clone(&self.handler);
             let commands = Arc::clone(&self.commands);
+            let modules = Arc::clone(&self.modules);
             let prefix = self.prefix.clone();
 
             tokio::spawn(async move {
-                if let Err(e) = dispatch(event, ctx, handler, commands, prefix).await {
+                if let Err(e) = dispatch(event, ctx, handler, commands, modules, prefix).await {
                     error!(error = %e, "event dispatch error");
                 }
             });
@@ -70,10 +73,11 @@ impl Bot {
 /// Builder for [`Bot`].  Obtain one via [`Bot::builder`].
 pub struct BotBuilder {
     token: String,
-    intents: u64,
+    intents: Intents,
     prefix: Option<String>,
     handler: Option<Arc<dyn EventHandler>>,
     commands: CommandRegistry,
+    modules: Vec<Arc<dyn Module>>,
 }
 
 impl BotBuilder {
@@ -81,15 +85,23 @@ impl BotBuilder {
     pub fn new(token: impl Into<String>) -> Self {
         Self {
             token: token.into(),
-            intents: 0,
+            intents: Intents::empty(),
             prefix: None,
             handler: None,
             commands: CommandRegistry::new(),
+            modules: Vec::new(),
         }
     }
 
-    /// Set the [Gateway Intents](https://discord.com/developers/docs/topics/gateway#gateway-intents) bitmask.
-    pub fn intents(mut self, intents: u64) -> Self {
+    /// Set the [Gateway Intents](https://discord.com/developers/docs/topics/gateway#gateway-intents).
+    ///
+    /// ```rust,ignore
+    /// use oxidian_core::intents::Intents;
+    ///
+    /// Bot::builder(token)
+    ///     .intents(Intents::GUILDS | Intents::GUILD_MESSAGES | Intents::MESSAGE_CONTENT)
+    /// ```
+    pub fn intents(mut self, intents: Intents) -> Self {
         self.intents = intents;
         self
     }
@@ -119,19 +131,35 @@ impl BotBuilder {
         self
     }
 
-    /// Register a [`Command`] module.
-    ///
-    /// The idiomatic pattern is to define one command per file, each exposing
-    /// a `pub fn command() -> Command` function, then register them here:
+    /// Register a [`Command`] module (single command).
     ///
     /// ```rust,ignore
     /// Bot::builder(token)
     ///     .register_module(commands::ping::command())
-    ///     .register_module(commands::echo::command())
     ///     .build()
     /// ```
     pub fn register_module(mut self, cmd: Command) -> Self {
         self.commands.add(cmd);
+        self
+    }
+
+    /// Register a [`Module`] — a struct that groups prefix commands, slash
+    /// command definitions, and an interaction handler.
+    ///
+    /// ```rust,ignore
+    /// Bot::builder(token)
+    ///     .module(FunModule)
+    ///     .module(ModerationModule)
+    ///     .build()
+    /// ```
+    pub fn module(mut self, m: impl Module) -> Self {
+        let m: Arc<dyn Module> = Arc::new(m);
+        // Extract prefix commands into the registry.
+        for cmd in m.commands() {
+            self.commands.add(cmd);
+        }
+        // Store the module for slash command routing.
+        self.modules.push(m);
         self
     }
 
@@ -145,6 +173,7 @@ impl BotBuilder {
                 .handler
                 .unwrap_or_else(|| Arc::new(DefaultHandler)),
             commands: Arc::new(self.commands),
+            modules: Arc::new(self.modules),
         }
     }
 }
@@ -154,6 +183,7 @@ async fn dispatch(
     ctx: Context,
     handler: Arc<dyn EventHandler>,
     commands: Arc<CommandRegistry>,
+    modules: Arc<Vec<Arc<dyn Module>>>,
     prefix: Option<String>,
 ) -> Result<()> {
     match event {
@@ -194,7 +224,21 @@ async fn dispatch(
             handler.guild_update(ctx, guild).await;
         }
         DispatchEvent::InteractionCreate(interaction) => {
-            handler.interaction(ctx, interaction).await;
+            // Route to the first module whose slash_commands() names match
+            // this interaction's command name; fall back to the global handler.
+            let routed: Option<Arc<dyn Module>> = {
+                let cmd_name = interaction.command_data().map(|d| d.name.clone());
+                cmd_name.and_then(|name| {
+                    modules
+                        .iter()
+                        .find(|m| m.slash_commands().iter().any(|c| c.name == name))
+                        .map(Arc::clone)
+                })
+            };
+            match routed {
+                Some(module) => module.handle_interaction(ctx, interaction).await,
+                None => handler.interaction(ctx, interaction).await,
+            }
         }
         DispatchEvent::VoiceStateUpdate(state) => {
             handler.voice_state_update(ctx, state).await;

@@ -1,6 +1,4 @@
-// Example: using slash commands
-fn main() {
-    //! Slash commands example.
+//! Slash commands example.
 //!
 //! Registers a `/ping` command globally, then listens for interactions.
 //!
@@ -11,7 +9,7 @@ fn main() {
 //! ```
 
 use async_trait::async_trait;
-use oxidian::{Bot, Context, EventHandler, Snowflake};
+use oxidian::{Bot, Context, EventHandler, Intents, Snowflake};
 use oxidian::core::models::interaction::{Interaction, InteractionResponse};
 use oxidian::gateway::events::ReadyData;
 use oxidian::interactions::command::SlashCommandBuilder;
@@ -95,12 +93,10 @@ async fn main() {
     println!("Slash commands registered. Starting bot...");
 
     Bot::builder(token)
-        .intents(0) // slash commands do not need any gateway intents
+        .intents(Intents::empty()) // slash commands do not need any gateway intents
         .handler(Handler)
         .build()
         .start()
         .await
         .expect("bot exited with an error");
-}
-
 }

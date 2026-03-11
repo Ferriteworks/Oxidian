@@ -1,6 +1,6 @@
 # Event Handling
 
-When the bot connects to Discord over the gateway, Discord sends a stream of events — messages, guild updates, members joining, and so on. Oxidian delivers these to your code through the `EventHandler` trait.
+When the bot connects to Discord over the gateway, Discord sends a stream of events — messages, guild updates, members joining, interactions, and so on. Oxidian delivers these to your code through the `EventHandler` trait.
 
 ## Implementing EventHandler
 
@@ -9,7 +9,7 @@ Create a struct and implement the trait:
 ```rust
 use async_trait::async_trait;
 use oxidian::{Context, EventHandler};
-use oxidian::core::models::{guild::Guild, message::Message};
+use oxidian::core::models::{guild::Guild, message::Message, interaction::Interaction};
 use oxidian::gateway::events::{MessageDeleteData, ReadyData};
 
 struct MyHandler;
@@ -25,6 +25,12 @@ impl EventHandler for MyHandler {
             return; // ignore other bots
         }
         println!("{}: {}", msg.author.username, msg.content);
+    }
+
+    async fn interaction(&self, ctx: Context, interaction: Interaction) {
+        // Fallback for slash commands not claimed by any Module.
+        // For slash commands registered via .module(), prefer Module::handle_interaction.
+        println!("unhandled interaction: {:?}", interaction.kind);
     }
 
     async fn guild_create(&self, _ctx: Context, guild: Guild) {
@@ -52,9 +58,12 @@ All methods have empty default implementations, so you only need to override the
 | `ready` | The bot has connected and the gateway session is established |
 | `message` | A message is created in any channel the bot can see |
 | `message_delete` | A message is deleted |
+| `interaction` | An `INTERACTION_CREATE` event arrives that was **not** claimed by any registered module |
 | `guild_create` | The bot joins a guild or a previously unavailable guild comes back online |
 | `guild_update` | A guild's settings change (name, icon, etc.) |
 | `raw_event` | Any event that doesn't have a dedicated method above |
+
+> **Note on `interaction`:** If you are using `.module()` to register slash commands, `Module::handle_interaction` will be called for matching commands and `EventHandler::interaction` will **not** fire for them. The `interaction` method here is a catch-all for anything not routed to a module.
 
 ## raw_event
 
@@ -99,6 +108,26 @@ impl EventHandler for MyHandler {
 
 ## Intents
 
-Discord only sends events for intents you've declared. If an event handler isn't firing, the most likely culprit is a missing intent. Check the [Gateway Intents](https://discord.com/developers/docs/topics/gateway#gateway-intents) docs and add the relevant bit to your `.intents()` call.
+Discord only sends events for intents you've declared. If an event handler isn't firing, the most likely culprit is a missing intent. Oxidian provides an `Intents` bitflags type that maps each Discord intent to a named constant:
 
-`MESSAGE_CONTENT` (bit 15) is a privileged intent. You must enable it in the Developer Portal for the bot to receive message content in `MESSAGE_CREATE` events.
+```rust
+use oxidian::Intents;
+
+Bot::builder(token)
+    .intents(Intents::GUILDS | Intents::GUILD_MESSAGES | Intents::MESSAGE_CONTENT)
+    // ...
+```
+
+`Intents::NON_PRIVILEGED` is a convenience constant that combines all non-privileged intents. `Intents::ALL` includes the three privileged intents as well (`MESSAGE_CONTENT`, `GUILD_MEMBERS`, `GUILD_PRESENCES`).
+
+The privileged intents require explicit opt-in in the Discord Developer Portal under your bot's settings. If you declare a privileged intent without enabling it in the portal, the gateway will close with opcode 4014.
+
+Common intents and what they unlock:
+
+| Intent constant | Events unlocked |
+|----------------|----------------|
+| `GUILDS` | `GUILD_CREATE`, `GUILD_UPDATE`, channel events |
+| `GUILD_MESSAGES` | `MESSAGE_CREATE`, `MESSAGE_UPDATE` in guilds |
+| `MESSAGE_CONTENT` ⚠️ privileged | Message `content`, `attachments`, `embeds`, `components` fields |
+| `GUILD_MEMBERS` ⚠️ privileged | `GUILD_MEMBER_ADD`, `GUILD_MEMBER_UPDATE`, `GUILD_MEMBER_REMOVE` |
+| `GUILD_VOICE_STATES` | `VOICE_STATE_UPDATE` — required before joining voice |
