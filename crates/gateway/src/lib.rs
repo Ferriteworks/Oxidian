@@ -11,9 +11,19 @@ pub mod shard;
 
 pub use connection::SessionState;
 pub use events::{
-    DispatchEvent, GuildBanData, GuildMemberAddData, GuildMemberRemoveData,
-    GuildRoleData, GuildRoleDeleteData, MessageDeleteBulkData, MessageDeleteData,
-    ReactionData, ReactionEmoji, ReactionRemoveAllData, ReactionRemoveEmojiData,
-    ReadyData, TypingStartData, VoiceServerUpdateData, VoiceStateUpdateData,
+    Activity, ApplicationCommandPermission, ApplicationCommandPermissionsUpdateData,
+    AuditLogEntry, AutoModerationAction, AutoModerationActionExecutionData,
+    AutoModerationActionMetadata, AutoModerationRule, AutoModerationTriggerMetadata,
+    ChannelPinsUpdateData, ClientStatus, DispatchEvent, GatewayPayload, GuildBanData,
+    GuildEmojisUpdateData, GuildIntegrationsUpdateData, GuildMemberAddData,
+    GuildMemberRemoveData, GuildMemberUpdateData, GuildMembersChunkData, GuildRoleData,
+    GuildRoleDeleteData, GuildSoundboardSoundsUpdateData, GuildStickersUpdateData,
+    HelloData, Integration, IntegrationDeleteData, InviteCreateData, InviteDeleteData,
+    MessageDeleteBulkData, MessageDeleteData, PollVoteData, PresenceUpdateData,
+    PresenceUser, ReactionData, ReactionEmoji, ReactionRemoveAllData,
+    ReactionRemoveEmojiData, ReadyData, ScheduledEventUserData,
+    SoundboardSoundDeleteData, Subscription, ThreadDeleteData, ThreadListSyncData,
+    ThreadMemberUpdateData, ThreadMembersUpdateData, TypingStartData, UnavailableGuild,
+    VoiceServerUpdateData, VoiceStateUpdateData, WebhooksUpdateData,
 };
 pub use shard::Shard;

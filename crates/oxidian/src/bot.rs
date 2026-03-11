@@ -296,6 +296,140 @@ async fn dispatch(
         DispatchEvent::VoiceServerUpdate(server) => {
             handler.voice_server_update(ctx, server).await;
         }
+        DispatchEvent::GuildMemberUpdate(data) => {
+            handler.guild_member_update(ctx, data).await;
+        }
+        DispatchEvent::PresenceUpdate(data) => {
+            handler.presence_update(ctx, data).await;
+        }
+        DispatchEvent::ChannelPinsUpdate(data) => {
+            handler.channel_pins_update(ctx, data).await;
+        }
+        DispatchEvent::ThreadCreate(thread) => {
+            handler.thread_create(ctx, thread).await;
+        }
+        DispatchEvent::ThreadUpdate(thread) => {
+            handler.thread_update(ctx, thread).await;
+        }
+        DispatchEvent::ThreadDelete(data) => {
+            handler.thread_delete(ctx, data).await;
+        }
+        DispatchEvent::ThreadListSync(data) => {
+            handler.thread_list_sync(ctx, data).await;
+        }
+        DispatchEvent::ThreadMembersUpdate(data) => {
+            handler.thread_members_update(ctx, data).await;
+        }
+        DispatchEvent::StageInstanceCreate(stage) => {
+            handler.stage_instance_create(ctx, stage).await;
+        }
+        DispatchEvent::StageInstanceUpdate(stage) => {
+            handler.stage_instance_update(ctx, stage).await;
+        }
+        DispatchEvent::StageInstanceDelete(stage) => {
+            handler.stage_instance_delete(ctx, stage).await;
+        }
+        DispatchEvent::GuildScheduledEventCreate(event) => {
+            handler.guild_scheduled_event_create(ctx, event).await;
+        }
+        DispatchEvent::GuildScheduledEventUpdate(event) => {
+            handler.guild_scheduled_event_update(ctx, event).await;
+        }
+        DispatchEvent::GuildScheduledEventDelete(event) => {
+            handler.guild_scheduled_event_delete(ctx, event).await;
+        }
+        DispatchEvent::GuildScheduledEventUserAdd(data) => {
+            handler.guild_scheduled_event_user_add(ctx, data).await;
+        }
+        DispatchEvent::GuildScheduledEventUserRemove(data) => {
+            handler.guild_scheduled_event_user_remove(ctx, data).await;
+        }
+        DispatchEvent::AutoModerationRuleCreate(rule) => {
+            handler.auto_moderation_rule_create(ctx, rule).await;
+        }
+        DispatchEvent::AutoModerationRuleUpdate(rule) => {
+            handler.auto_moderation_rule_update(ctx, rule).await;
+        }
+        DispatchEvent::AutoModerationRuleDelete(rule) => {
+            handler.auto_moderation_rule_delete(ctx, rule).await;
+        }
+        DispatchEvent::AutoModerationActionExecution(data) => {
+            handler.auto_moderation_action_execution(ctx, data).await;
+        }
+        DispatchEvent::PollVoteAdd(data) => {
+            handler.poll_vote_add(ctx, data).await;
+        }
+        DispatchEvent::PollVoteRemove(data) => {
+            handler.poll_vote_remove(ctx, data).await;
+        }
+        DispatchEvent::GuildSoundboardSoundCreate(sound) => {
+            handler.guild_soundboard_sound_create(ctx, sound).await;
+        }
+        DispatchEvent::GuildSoundboardSoundUpdate(sound) => {
+            handler.guild_soundboard_sound_update(ctx, sound).await;
+        }
+        DispatchEvent::GuildSoundboardSoundDelete(data) => {
+            handler.guild_soundboard_sound_delete(ctx, data).await;
+        }
+        DispatchEvent::GuildEmojisUpdate(data) => {
+            handler.guild_emojis_update(ctx, data).await;
+        }
+        DispatchEvent::GuildStickersUpdate(data) => {
+            handler.guild_stickers_update(ctx, data).await;
+        }
+        DispatchEvent::GuildAuditLogEntryCreate(entry) => {
+            handler.guild_audit_log_entry_create(ctx, entry).await;
+        }
+        DispatchEvent::GuildIntegrationsUpdate(data) => {
+            handler.guild_integrations_update(ctx, data).await;
+        }
+        DispatchEvent::IntegrationCreate(integration) => {
+            handler.integration_create(ctx, integration).await;
+        }
+        DispatchEvent::IntegrationUpdate(integration) => {
+            handler.integration_update(ctx, integration).await;
+        }
+        DispatchEvent::IntegrationDelete(data) => {
+            handler.integration_delete(ctx, data).await;
+        }
+        DispatchEvent::InviteCreate(data) => {
+            handler.invite_create(ctx, data).await;
+        }
+        DispatchEvent::InviteDelete(data) => {
+            handler.invite_delete(ctx, data).await;
+        }
+        DispatchEvent::GuildMembersChunk(data) => {
+            handler.guild_members_chunk(ctx, data).await;
+        }
+        DispatchEvent::UserUpdate(user) => {
+            handler.user_update(ctx, user).await;
+        }
+        DispatchEvent::ThreadMemberUpdate(data) => {
+            handler.thread_member_update(ctx, data).await;
+        }
+        DispatchEvent::WebhooksUpdate(data) => {
+            handler.webhooks_update(ctx, data).await;
+        }
+        DispatchEvent::VoiceChannelEffectSend(effect) => {
+            handler.voice_channel_effect_send(ctx, effect).await;
+        }
+        DispatchEvent::ApplicationCommandPermissionsUpdate(data) => {
+            handler
+                .application_command_permissions_update(ctx, data)
+                .await;
+        }
+        DispatchEvent::GuildSoundboardSoundsUpdate(data) => {
+            handler.guild_soundboard_sounds_update(ctx, data).await;
+        }
+        DispatchEvent::SubscriptionCreate(sub) => {
+            handler.subscription_create(ctx, sub).await;
+        }
+        DispatchEvent::SubscriptionUpdate(sub) => {
+            handler.subscription_update(ctx, sub).await;
+        }
+        DispatchEvent::SubscriptionDelete(sub) => {
+            handler.subscription_delete(ctx, sub).await;
+        }
         other => {
             handler.raw_event(ctx, other).await;
         }

@@ -8,17 +8,28 @@ use oxidian_core::{
     intents::Intents,
     models::{
         channel::Channel, guild::Guild, interaction::Interaction,
-        message::Message as DiscordMessage,
+        message::Message as DiscordMessage, scheduled_event::ScheduledEvent,
+        soundboard::SoundboardSound, stage::StageInstance, thread::Thread,
+        user::User as DiscordUser, voice::VoiceChannelEffect,
     },
 };
 
 use crate::{
     events::{
-        DispatchEvent, GatewayPayload, GuildBanData, GuildMemberAddData,
-        GuildMemberRemoveData, GuildRoleData, GuildRoleDeleteData, HelloData,
-        MessageDeleteBulkData, MessageDeleteData, ReactionData, ReactionRemoveAllData,
-        ReactionRemoveEmojiData, ReadyData, TypingStartData, UnavailableGuild,
-        VoiceServerUpdateData, VoiceStateUpdateData,
+        ApplicationCommandPermissionsUpdateData, AuditLogEntry,
+        AutoModerationActionExecutionData, AutoModerationRule, ChannelPinsUpdateData,
+        DispatchEvent, GatewayPayload, GuildBanData, GuildEmojisUpdateData,
+        GuildIntegrationsUpdateData, GuildMemberAddData, GuildMemberRemoveData,
+        GuildMemberUpdateData, GuildMembersChunkData, GuildRoleData,
+        GuildRoleDeleteData, GuildSoundboardSoundsUpdateData, GuildStickersUpdateData,
+        HelloData, Integration, IntegrationDeleteData, InviteCreateData,
+        InviteDeleteData, MessageDeleteBulkData, MessageDeleteData, PollVoteData,
+        PresenceUpdateData, ReactionData, ReactionRemoveAllData,
+        ReactionRemoveEmojiData, ReadyData, ScheduledEventUserData,
+        SoundboardSoundDeleteData, Subscription, ThreadDeleteData, ThreadListSyncData,
+        ThreadMemberUpdateData, ThreadMembersUpdateData, TypingStartData,
+        UnavailableGuild, VoiceServerUpdateData, VoiceStateUpdateData,
+        WebhooksUpdateData,
     },
     heartbeat::{self, HeartbeatMessage, WsMessageTx},
     opcodes::Opcode,
@@ -578,6 +589,376 @@ fn parse_dispatch(payload: GatewayPayload) -> Option<DispatchEvent> {
                 }
             }
         }
+        "GUILD_MEMBER_UPDATE" => {
+            match serde_json::from_value::<GuildMemberUpdateData>(data) {
+                Ok(d) => Some(DispatchEvent::GuildMemberUpdate(d)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse GUILD_MEMBER_UPDATE payload");
+                    None
+                }
+            }
+        }
+        "PRESENCE_UPDATE" => match serde_json::from_value::<PresenceUpdateData>(data) {
+            Ok(d) => Some(DispatchEvent::PresenceUpdate(d)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse PRESENCE_UPDATE payload");
+                None
+            }
+        },
+        "CHANNEL_PINS_UPDATE" => {
+            match serde_json::from_value::<ChannelPinsUpdateData>(data) {
+                Ok(d) => Some(DispatchEvent::ChannelPinsUpdate(d)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse CHANNEL_PINS_UPDATE payload");
+                    None
+                }
+            }
+        }
+        "THREAD_CREATE" => match serde_json::from_value::<Thread>(data) {
+            Ok(t) => Some(DispatchEvent::ThreadCreate(t)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse THREAD_CREATE payload");
+                None
+            }
+        },
+        "THREAD_UPDATE" => match serde_json::from_value::<Thread>(data) {
+            Ok(t) => Some(DispatchEvent::ThreadUpdate(t)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse THREAD_UPDATE payload");
+                None
+            }
+        },
+        "THREAD_DELETE" => match serde_json::from_value::<ThreadDeleteData>(data) {
+            Ok(d) => Some(DispatchEvent::ThreadDelete(d)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse THREAD_DELETE payload");
+                None
+            }
+        },
+        "THREAD_LIST_SYNC" => {
+            match serde_json::from_value::<ThreadListSyncData>(data) {
+                Ok(d) => Some(DispatchEvent::ThreadListSync(d)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse THREAD_LIST_SYNC payload");
+                    None
+                }
+            }
+        }
+        "THREAD_MEMBERS_UPDATE" => {
+            match serde_json::from_value::<ThreadMembersUpdateData>(data) {
+                Ok(d) => Some(DispatchEvent::ThreadMembersUpdate(d)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse THREAD_MEMBERS_UPDATE payload");
+                    None
+                }
+            }
+        }
+        "STAGE_INSTANCE_CREATE" => {
+            match serde_json::from_value::<StageInstance>(data) {
+                Ok(s) => Some(DispatchEvent::StageInstanceCreate(s)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse STAGE_INSTANCE_CREATE payload");
+                    None
+                }
+            }
+        }
+        "STAGE_INSTANCE_UPDATE" => {
+            match serde_json::from_value::<StageInstance>(data) {
+                Ok(s) => Some(DispatchEvent::StageInstanceUpdate(s)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse STAGE_INSTANCE_UPDATE payload");
+                    None
+                }
+            }
+        }
+        "STAGE_INSTANCE_DELETE" => {
+            match serde_json::from_value::<StageInstance>(data) {
+                Ok(s) => Some(DispatchEvent::StageInstanceDelete(s)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse STAGE_INSTANCE_DELETE payload");
+                    None
+                }
+            }
+        }
+        "GUILD_SCHEDULED_EVENT_CREATE" => {
+            match serde_json::from_value::<ScheduledEvent>(data) {
+                Ok(e) => Some(DispatchEvent::GuildScheduledEventCreate(e)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse GUILD_SCHEDULED_EVENT_CREATE payload");
+                    None
+                }
+            }
+        }
+        "GUILD_SCHEDULED_EVENT_UPDATE" => {
+            match serde_json::from_value::<ScheduledEvent>(data) {
+                Ok(e) => Some(DispatchEvent::GuildScheduledEventUpdate(e)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse GUILD_SCHEDULED_EVENT_UPDATE payload");
+                    None
+                }
+            }
+        }
+        "GUILD_SCHEDULED_EVENT_DELETE" => {
+            match serde_json::from_value::<ScheduledEvent>(data) {
+                Ok(e) => Some(DispatchEvent::GuildScheduledEventDelete(e)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse GUILD_SCHEDULED_EVENT_DELETE payload");
+                    None
+                }
+            }
+        }
+        "GUILD_SCHEDULED_EVENT_USER_ADD" => {
+            match serde_json::from_value::<ScheduledEventUserData>(data) {
+                Ok(d) => Some(DispatchEvent::GuildScheduledEventUserAdd(d)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse GUILD_SCHEDULED_EVENT_USER_ADD payload");
+                    None
+                }
+            }
+        }
+        "GUILD_SCHEDULED_EVENT_USER_REMOVE" => {
+            match serde_json::from_value::<ScheduledEventUserData>(data) {
+                Ok(d) => Some(DispatchEvent::GuildScheduledEventUserRemove(d)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse GUILD_SCHEDULED_EVENT_USER_REMOVE payload");
+                    None
+                }
+            }
+        }
+        "AUTO_MODERATION_RULE_CREATE" => {
+            match serde_json::from_value::<AutoModerationRule>(data) {
+                Ok(r) => Some(DispatchEvent::AutoModerationRuleCreate(r)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse AUTO_MODERATION_RULE_CREATE payload");
+                    None
+                }
+            }
+        }
+        "AUTO_MODERATION_RULE_UPDATE" => {
+            match serde_json::from_value::<AutoModerationRule>(data) {
+                Ok(r) => Some(DispatchEvent::AutoModerationRuleUpdate(r)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse AUTO_MODERATION_RULE_UPDATE payload");
+                    None
+                }
+            }
+        }
+        "AUTO_MODERATION_RULE_DELETE" => {
+            match serde_json::from_value::<AutoModerationRule>(data) {
+                Ok(r) => Some(DispatchEvent::AutoModerationRuleDelete(r)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse AUTO_MODERATION_RULE_DELETE payload");
+                    None
+                }
+            }
+        }
+        "AUTO_MODERATION_ACTION_EXECUTION" => {
+            match serde_json::from_value::<AutoModerationActionExecutionData>(data) {
+                Ok(d) => Some(DispatchEvent::AutoModerationActionExecution(d)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse AUTO_MODERATION_ACTION_EXECUTION payload");
+                    None
+                }
+            }
+        }
+        "MESSAGE_POLL_VOTE_ADD" => match serde_json::from_value::<PollVoteData>(data) {
+            Ok(d) => Some(DispatchEvent::PollVoteAdd(d)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse MESSAGE_POLL_VOTE_ADD payload");
+                None
+            }
+        },
+        "MESSAGE_POLL_VOTE_REMOVE" => {
+            match serde_json::from_value::<PollVoteData>(data) {
+                Ok(d) => Some(DispatchEvent::PollVoteRemove(d)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse MESSAGE_POLL_VOTE_REMOVE payload");
+                    None
+                }
+            }
+        }
+        "GUILD_SOUNDBOARD_SOUND_CREATE" => {
+            match serde_json::from_value::<SoundboardSound>(data) {
+                Ok(s) => Some(DispatchEvent::GuildSoundboardSoundCreate(s)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse GUILD_SOUNDBOARD_SOUND_CREATE payload");
+                    None
+                }
+            }
+        }
+        "GUILD_SOUNDBOARD_SOUND_UPDATE" => {
+            match serde_json::from_value::<SoundboardSound>(data) {
+                Ok(s) => Some(DispatchEvent::GuildSoundboardSoundUpdate(s)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse GUILD_SOUNDBOARD_SOUND_UPDATE payload");
+                    None
+                }
+            }
+        }
+        "GUILD_SOUNDBOARD_SOUND_DELETE" => {
+            match serde_json::from_value::<SoundboardSoundDeleteData>(data) {
+                Ok(d) => Some(DispatchEvent::GuildSoundboardSoundDelete(d)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse GUILD_SOUNDBOARD_SOUND_DELETE payload");
+                    None
+                }
+            }
+        }
+        "GUILD_EMOJIS_UPDATE" => {
+            match serde_json::from_value::<GuildEmojisUpdateData>(data) {
+                Ok(d) => Some(DispatchEvent::GuildEmojisUpdate(d)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse GUILD_EMOJIS_UPDATE payload");
+                    None
+                }
+            }
+        }
+        "GUILD_STICKERS_UPDATE" => {
+            match serde_json::from_value::<GuildStickersUpdateData>(data) {
+                Ok(d) => Some(DispatchEvent::GuildStickersUpdate(d)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse GUILD_STICKERS_UPDATE payload");
+                    None
+                }
+            }
+        }
+        "GUILD_AUDIT_LOG_ENTRY_CREATE" => {
+            match serde_json::from_value::<AuditLogEntry>(data) {
+                Ok(e) => Some(DispatchEvent::GuildAuditLogEntryCreate(e)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse GUILD_AUDIT_LOG_ENTRY_CREATE payload");
+                    None
+                }
+            }
+        }
+        "GUILD_INTEGRATIONS_UPDATE" => {
+            match serde_json::from_value::<GuildIntegrationsUpdateData>(data) {
+                Ok(d) => Some(DispatchEvent::GuildIntegrationsUpdate(d)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse GUILD_INTEGRATIONS_UPDATE payload");
+                    None
+                }
+            }
+        }
+        "INTEGRATION_CREATE" => match serde_json::from_value::<Integration>(data) {
+            Ok(i) => Some(DispatchEvent::IntegrationCreate(i)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse INTEGRATION_CREATE payload");
+                None
+            }
+        },
+        "INTEGRATION_UPDATE" => match serde_json::from_value::<Integration>(data) {
+            Ok(i) => Some(DispatchEvent::IntegrationUpdate(i)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse INTEGRATION_UPDATE payload");
+                None
+            }
+        },
+        "INTEGRATION_DELETE" => {
+            match serde_json::from_value::<IntegrationDeleteData>(data) {
+                Ok(d) => Some(DispatchEvent::IntegrationDelete(d)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse INTEGRATION_DELETE payload");
+                    None
+                }
+            }
+        }
+        "INVITE_CREATE" => match serde_json::from_value::<InviteCreateData>(data) {
+            Ok(d) => Some(DispatchEvent::InviteCreate(d)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse INVITE_CREATE payload");
+                None
+            }
+        },
+        "INVITE_DELETE" => match serde_json::from_value::<InviteDeleteData>(data) {
+            Ok(d) => Some(DispatchEvent::InviteDelete(d)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse INVITE_DELETE payload");
+                None
+            }
+        },
+        "GUILD_MEMBERS_CHUNK" => {
+            match serde_json::from_value::<GuildMembersChunkData>(data) {
+                Ok(d) => Some(DispatchEvent::GuildMembersChunk(d)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse GUILD_MEMBERS_CHUNK payload");
+                    None
+                }
+            }
+        }
+        "USER_UPDATE" => match serde_json::from_value::<DiscordUser>(data) {
+            Ok(u) => Some(DispatchEvent::UserUpdate(u)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse USER_UPDATE payload");
+                None
+            }
+        },
+        "THREAD_MEMBER_UPDATE" => {
+            match serde_json::from_value::<ThreadMemberUpdateData>(data) {
+                Ok(d) => Some(DispatchEvent::ThreadMemberUpdate(d)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse THREAD_MEMBER_UPDATE payload");
+                    None
+                }
+            }
+        }
+        "WEBHOOKS_UPDATE" => match serde_json::from_value::<WebhooksUpdateData>(data) {
+            Ok(d) => Some(DispatchEvent::WebhooksUpdate(d)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse WEBHOOKS_UPDATE payload");
+                None
+            }
+        },
+        "VOICE_CHANNEL_EFFECT_SEND" => {
+            match serde_json::from_value::<VoiceChannelEffect>(data) {
+                Ok(e) => Some(DispatchEvent::VoiceChannelEffectSend(e)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse VOICE_CHANNEL_EFFECT_SEND payload");
+                    None
+                }
+            }
+        }
+        "APPLICATION_COMMAND_PERMISSIONS_UPDATE" => {
+            match serde_json::from_value::<ApplicationCommandPermissionsUpdateData>(
+                data,
+            ) {
+                Ok(d) => Some(DispatchEvent::ApplicationCommandPermissionsUpdate(d)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse APPLICATION_COMMAND_PERMISSIONS_UPDATE payload");
+                    None
+                }
+            }
+        }
+        "GUILD_SOUNDBOARD_SOUNDS_UPDATE" => {
+            match serde_json::from_value::<GuildSoundboardSoundsUpdateData>(data) {
+                Ok(d) => Some(DispatchEvent::GuildSoundboardSoundsUpdate(d)),
+                Err(e) => {
+                    warn!(error = %e, "failed to parse GUILD_SOUNDBOARD_SOUNDS_UPDATE payload");
+                    None
+                }
+            }
+        }
+        "SUBSCRIPTION_CREATE" => match serde_json::from_value::<Subscription>(data) {
+            Ok(s) => Some(DispatchEvent::SubscriptionCreate(s)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse SUBSCRIPTION_CREATE payload");
+                None
+            }
+        },
+        "SUBSCRIPTION_UPDATE" => match serde_json::from_value::<Subscription>(data) {
+            Ok(s) => Some(DispatchEvent::SubscriptionUpdate(s)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse SUBSCRIPTION_UPDATE payload");
+                None
+            }
+        },
+        "SUBSCRIPTION_DELETE" => match serde_json::from_value::<Subscription>(data) {
+            Ok(s) => Some(DispatchEvent::SubscriptionDelete(s)),
+            Err(e) => {
+                warn!(error = %e, "failed to parse SUBSCRIPTION_DELETE payload");
+                None
+            }
+        },
         other => {
             debug!(event = other, "unhandled dispatch event type");
             Some(DispatchEvent::Unknown {
