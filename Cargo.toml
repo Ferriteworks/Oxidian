@@ -6,8 +6,8 @@ members = [
     "crates/interactions",
     "crates/voice",
     "crates/oxidian",
-    "testBot",
 ]
+exclude = ["testBot"]
 resolver = "2"
 
 [workspace.package]

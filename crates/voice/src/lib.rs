@@ -23,5 +23,7 @@
 
 pub mod connection;
 pub mod dave;
+pub mod opus;
 
 pub use connection::VoiceConnection;
+pub use opus::{OpusDecoder, OpusEncoder};
