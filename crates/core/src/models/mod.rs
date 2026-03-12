@@ -23,6 +23,7 @@
 pub mod channel;
 pub mod embed;
 pub mod emoji;
+pub mod entitlement;
 pub mod guild;
 pub mod interaction;
 pub mod invite;

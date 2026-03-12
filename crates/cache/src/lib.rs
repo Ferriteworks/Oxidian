@@ -22,7 +22,7 @@
 
 //! In-memory cache updated in real time by gateway events.
 //!
-//! The cache is **never** proactively fetched — it is populated and maintained
+//! The cache is **never** proactively fetched —- it is populated and maintained
 //! exclusively by gateway dispatch events. Call [`Cache::update`] with every
 //! [`DispatchEvent`] **before** firing user event handlers.
 //!

@@ -455,6 +455,355 @@ impl HttpClient {
         .await
     }
 
+    // ── Threads ───────────────────────────────────────────────────────────
+
+    /// Start a new thread without a message (`POST /channels/{channel.id}/threads`).
+    ///
+    /// `body` should include at least `name` and `type` (11 = PUBLIC, 12 = PRIVATE).
+    pub async fn create_thread(
+        &self,
+        channel_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::CreateThread { channel_id }, Some(body))
+            .await
+    }
+
+    /// Start a new thread from an existing message.
+    pub async fn create_thread_from_message(
+        &self,
+        channel_id: oxidian_core::snowflake::Snowflake,
+        message_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(
+            Route::CreateThreadFromMessage {
+                channel_id,
+                message_id,
+            },
+            Some(body),
+        )
+        .await
+    }
+
+    /// Join a thread.
+    pub async fn join_thread(
+        &self,
+        thread_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<(), OxidianError> {
+        self.request(Route::JoinThread { thread_id }, None).await
+    }
+
+    /// Leave a thread.
+    pub async fn leave_thread(
+        &self,
+        thread_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<(), OxidianError> {
+        self.request(Route::LeaveThread { thread_id }, None).await
+    }
+
+    /// Add a member to a thread.
+    pub async fn add_thread_member(
+        &self,
+        thread_id: oxidian_core::snowflake::Snowflake,
+        user_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<(), OxidianError> {
+        self.request(Route::AddThreadMember { thread_id, user_id }, None)
+            .await
+    }
+
+    /// Remove a member from a thread.
+    pub async fn remove_thread_member(
+        &self,
+        thread_id: oxidian_core::snowflake::Snowflake,
+        user_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<(), OxidianError> {
+        self.request(Route::RemoveThreadMember { thread_id, user_id }, None)
+            .await
+    }
+
+    /// List public archived threads in a channel.
+    pub async fn list_public_archived_threads(
+        &self,
+        channel_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::ListPublicArchivedThreads { channel_id }, None)
+            .await
+    }
+
+    /// List private archived threads in a channel.
+    pub async fn list_private_archived_threads(
+        &self,
+        channel_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::ListPrivateArchivedThreads { channel_id }, None)
+            .await
+    }
+
+    /// Modify a thread (archive, lock, rename, slow mode, etc.).
+    pub async fn modify_thread(
+        &self,
+        channel_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::ModifyThread { channel_id }, Some(body))
+            .await
+    }
+
+    // ── Guild Members (modify / timeout) ──────────────────────────────────
+
+    /// Modify a guild member (`PATCH /guilds/{guild.id}/members/{user.id}`).
+    ///
+    /// Use this to change nick, roles, mute, deaf, move to channel, or
+    /// **timeout** a member (set `communication_disabled_until` to an ISO 8601
+    /// timestamp, or `null` to remove).
+    pub async fn modify_guild_member(
+        &self,
+        guild_id: oxidian_core::snowflake::Snowflake,
+        user_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(
+            Route::ModifyGuildMember { guild_id, user_id },
+            Some(body),
+        )
+        .await
+    }
+
+    // ── Scheduled Events ──────────────────────────────────────────────────
+
+    /// List all scheduled events for a guild.
+    pub async fn list_scheduled_events(
+        &self,
+        guild_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::ListScheduledEvents { guild_id }, None)
+            .await
+    }
+
+    /// Create a scheduled event in a guild.
+    pub async fn create_scheduled_event(
+        &self,
+        guild_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::CreateScheduledEvent { guild_id }, Some(body))
+            .await
+    }
+
+    /// Get a scheduled event by ID.
+    pub async fn get_scheduled_event(
+        &self,
+        guild_id: oxidian_core::snowflake::Snowflake,
+        event_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::GetScheduledEvent { guild_id, event_id }, None)
+            .await
+    }
+
+    /// Modify a scheduled event.
+    pub async fn modify_scheduled_event(
+        &self,
+        guild_id: oxidian_core::snowflake::Snowflake,
+        event_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(
+            Route::ModifyScheduledEvent { guild_id, event_id },
+            Some(body),
+        )
+        .await
+    }
+
+    /// Delete a scheduled event.
+    pub async fn delete_scheduled_event(
+        &self,
+        guild_id: oxidian_core::snowflake::Snowflake,
+        event_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<(), OxidianError> {
+        self.request(Route::DeleteScheduledEvent { guild_id, event_id }, None)
+            .await
+    }
+
+    // ── Stickers ──────────────────────────────────────────────────────────
+
+    /// List all stickers in a guild.
+    pub async fn list_guild_stickers(
+        &self,
+        guild_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::ListGuildStickers { guild_id }, None)
+            .await
+    }
+
+    /// Get a guild sticker by ID.
+    pub async fn get_guild_sticker(
+        &self,
+        guild_id: oxidian_core::snowflake::Snowflake,
+        sticker_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(
+            Route::GetGuildSticker {
+                guild_id,
+                sticker_id,
+            },
+            None,
+        )
+        .await
+    }
+
+    /// Create a guild sticker. Note: stickers are uploaded as multipart
+    /// form data; for now pass serialised JSON and handle the upload
+    /// separately if needed.
+    pub async fn create_guild_sticker(
+        &self,
+        guild_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::CreateGuildSticker { guild_id }, Some(body))
+            .await
+    }
+
+    /// Modify a guild sticker (name, description, tags).
+    pub async fn modify_guild_sticker(
+        &self,
+        guild_id: oxidian_core::snowflake::Snowflake,
+        sticker_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(
+            Route::ModifyGuildSticker {
+                guild_id,
+                sticker_id,
+            },
+            Some(body),
+        )
+        .await
+    }
+
+    /// Delete a guild sticker.
+    pub async fn delete_guild_sticker(
+        &self,
+        guild_id: oxidian_core::snowflake::Snowflake,
+        sticker_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<(), OxidianError> {
+        self.request(
+            Route::DeleteGuildSticker {
+                guild_id,
+                sticker_id,
+            },
+            None,
+        )
+        .await
+    }
+
+    // ── Auto Moderation ───────────────────────────────────────────────────
+
+    /// List all auto-moderation rules for a guild.
+    pub async fn list_auto_moderation_rules(
+        &self,
+        guild_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::ListAutoModerationRules { guild_id }, None)
+            .await
+    }
+
+    /// Get a single auto-moderation rule by ID.
+    pub async fn get_auto_moderation_rule(
+        &self,
+        guild_id: oxidian_core::snowflake::Snowflake,
+        rule_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::GetAutoModerationRule { guild_id, rule_id }, None)
+            .await
+    }
+
+    /// Create an auto-moderation rule.
+    pub async fn create_auto_moderation_rule(
+        &self,
+        guild_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::CreateAutoModerationRule { guild_id }, Some(body))
+            .await
+    }
+
+    /// Modify an auto-moderation rule.
+    pub async fn modify_auto_moderation_rule(
+        &self,
+        guild_id: oxidian_core::snowflake::Snowflake,
+        rule_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(
+            Route::ModifyAutoModerationRule { guild_id, rule_id },
+            Some(body),
+        )
+        .await
+    }
+
+    /// Delete an auto-moderation rule.
+    pub async fn delete_auto_moderation_rule(
+        &self,
+        guild_id: oxidian_core::snowflake::Snowflake,
+        rule_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<(), OxidianError> {
+        self.request(
+            Route::DeleteAutoModerationRule { guild_id, rule_id },
+            None,
+        )
+        .await
+    }
+
+    // ── Entitlements / Monetization ───────────────────────────────────────
+
+    /// List entitlements for the application.
+    pub async fn list_entitlements(
+        &self,
+        application_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::ListEntitlements { application_id }, None)
+            .await
+    }
+
+    /// Create a test entitlement (for development/testing).
+    pub async fn create_test_entitlement(
+        &self,
+        application_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(
+            Route::CreateTestEntitlement { application_id },
+            Some(body),
+        )
+        .await
+    }
+
+    /// Delete a test entitlement.
+    pub async fn delete_test_entitlement(
+        &self,
+        application_id: oxidian_core::snowflake::Snowflake,
+        entitlement_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<(), OxidianError> {
+        self.request(
+            Route::DeleteTestEntitlement {
+                application_id,
+                entitlement_id,
+            },
+            None,
+        )
+        .await
+    }
+
+    /// List SKUs for the application.
+    pub async fn list_skus(
+        &self,
+        application_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::ListSkus { application_id }, None)
+            .await
+    }
+
     fn build_request(
         &self,
         route: &Route,
