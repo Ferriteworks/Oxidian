@@ -295,6 +295,17 @@ pub struct Interaction {
     /// For monetized apps, any entitlements for the invoking user.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub entitlements: Vec<serde_json::Value>,
+    /// Mapping of installation contexts that the interaction was authorized for.
+    /// Key is the integration type (`"0"` = GUILD_INSTALL, `"1"` = USER_INSTALL).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub authorizing_integration_owners: Option<HashMap<String, Snowflake>>,
+    /// Context where the interaction was triggered from.
+    /// `0` = GUILD, `1` = BOT_DM, `2` = PRIVATE_CHANNEL.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context: Option<u8>,
+    /// The channel object for the channel the interaction was sent from.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub channel: Option<Channel>,
 }
 
 impl Interaction {

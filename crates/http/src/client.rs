@@ -31,8 +31,7 @@
 
 use reqwest::{
     header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE, USER_AGENT},
-    multipart,
-    StatusCode,
+    multipart, StatusCode,
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -825,7 +824,10 @@ impl HttpClient {
     ///
     /// `body` must include `channel_id` and `topic`. Optionally `privacy_level`
     /// and `send_start_notification`.
-    pub async fn create_stage_instance(&self, body: Value) -> Result<Value, OxidianError> {
+    pub async fn create_stage_instance(
+        &self,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
         self.request(Route::CreateStageInstance, Some(body)).await
     }
 
@@ -922,11 +924,8 @@ impl HttpClient {
         guild_id: oxidian_core::snowflake::Snowflake,
         body: Value,
     ) -> Result<Value, OxidianError> {
-        self.request(
-            Route::CreateGuildSoundboardSound { guild_id },
-            Some(body),
-        )
-        .await
+        self.request(Route::CreateGuildSoundboardSound { guild_id }, Some(body))
+            .await
     }
 
     /// Modify a soundboard sound (name, volume, emoji).
@@ -1004,6 +1003,78 @@ impl HttpClient {
         pack_id: oxidian_core::snowflake::Snowflake,
     ) -> Result<Value, OxidianError> {
         self.request(Route::GetStickerPack { pack_id }, None).await
+    }
+
+    // ── Application Emoji ─────────────────────────────────────────────────
+
+    /// List all emoji for the application.
+    pub async fn list_application_emojis(
+        &self,
+        application_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::ListApplicationEmojis { application_id }, None)
+            .await
+    }
+
+    /// Fetch a single application emoji by ID.
+    pub async fn get_application_emoji(
+        &self,
+        application_id: oxidian_core::snowflake::Snowflake,
+        emoji_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(
+            Route::GetApplicationEmoji {
+                application_id,
+                emoji_id,
+            },
+            None,
+        )
+        .await
+    }
+
+    /// Create a new application emoji.
+    ///
+    /// `body` must include `name` and `image` (base64-encoded data URI).
+    pub async fn create_application_emoji(
+        &self,
+        application_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::CreateApplicationEmoji { application_id }, Some(body))
+            .await
+    }
+
+    /// Modify an application emoji (currently only `name` can be changed).
+    pub async fn modify_application_emoji(
+        &self,
+        application_id: oxidian_core::snowflake::Snowflake,
+        emoji_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(
+            Route::ModifyApplicationEmoji {
+                application_id,
+                emoji_id,
+            },
+            Some(body),
+        )
+        .await
+    }
+
+    /// Delete an application emoji.
+    pub async fn delete_application_emoji(
+        &self,
+        application_id: oxidian_core::snowflake::Snowflake,
+        emoji_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<(), OxidianError> {
+        self.request(
+            Route::DeleteApplicationEmoji {
+                application_id,
+                emoji_id,
+            },
+            None,
+        )
+        .await
     }
 
     fn build_request(
@@ -1115,7 +1186,8 @@ impl HttpClient {
 
             if !status.is_success() {
                 let body_text = resp.text().await.unwrap_or_default();
-                if let Ok(api_err) = serde_json::from_str::<DiscordApiError>(&body_text) {
+                if let Ok(api_err) = serde_json::from_str::<DiscordApiError>(&body_text)
+                {
                     return Err(OxidianError::Api {
                         code: api_err.code,
                         message: api_err.message,

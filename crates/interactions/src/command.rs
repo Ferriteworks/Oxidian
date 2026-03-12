@@ -27,6 +27,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use std::collections::HashMap;
+
 use oxidian_core::{
     models::interaction::{ApplicationCommandType, CommandOptionType},
     snowflake::Snowflake,
@@ -39,6 +41,9 @@ pub struct CommandChoice {
     pub name: String,
     /// Value submitted when the user picks this choice.
     pub value: serde_json::Value,
+    /// Localized display names, keyed by Discord locale code (e.g. `"de"`).
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub name_localizations: HashMap<String, String>,
 }
 
 impl CommandChoice {
@@ -47,6 +52,7 @@ impl CommandChoice {
         Self {
             name: name.into(),
             value: serde_json::Value::String(value.into()),
+            name_localizations: HashMap::new(),
         }
     }
 
@@ -55,6 +61,7 @@ impl CommandChoice {
         Self {
             name: name.into(),
             value: serde_json::Value::from(value),
+            name_localizations: HashMap::new(),
         }
     }
 
@@ -63,7 +70,14 @@ impl CommandChoice {
         Self {
             name: name.into(),
             value: serde_json::Value::from(value),
+            name_localizations: HashMap::new(),
         }
+    }
+
+    /// Set localized display names for this choice.
+    pub fn name_localizations(mut self, map: HashMap<String, String>) -> Self {
+        self.name_localizations = map;
+        self
     }
 }
 
@@ -77,6 +91,12 @@ pub struct CommandOption {
     pub name: String,
     /// A short description (1–100 chars).
     pub description: String,
+    /// Localized option names keyed by Discord locale code.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub name_localizations: HashMap<String, String>,
+    /// Localized option descriptions keyed by Discord locale code.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub description_localizations: HashMap<String, String>,
     /// Whether this option must be provided.
     #[serde(default)]
     pub required: bool,
@@ -108,6 +128,8 @@ pub struct CommandOptionBuilder {
     kind: CommandOptionType,
     name: String,
     description: String,
+    name_localizations: HashMap<String, String>,
+    description_localizations: HashMap<String, String>,
     required: bool,
     choices: Vec<CommandChoice>,
     options: Vec<CommandOption>,
@@ -129,6 +151,8 @@ impl CommandOptionBuilder {
             kind,
             name: name.into(),
             description: description.into(),
+            name_localizations: HashMap::new(),
+            description_localizations: HashMap::new(),
             required: false,
             choices: Vec::new(),
             options: Vec::new(),
@@ -188,12 +212,26 @@ impl CommandOptionBuilder {
         self
     }
 
+    /// Set localized option names.
+    pub fn name_localizations(mut self, map: HashMap<String, String>) -> Self {
+        self.name_localizations = map;
+        self
+    }
+
+    /// Set localized option descriptions.
+    pub fn description_localizations(mut self, map: HashMap<String, String>) -> Self {
+        self.description_localizations = map;
+        self
+    }
+
     /// Finalise and return a [`CommandOption`].
     pub fn build(self) -> CommandOption {
         CommandOption {
             kind: self.kind,
             name: self.name,
             description: self.description,
+            name_localizations: self.name_localizations,
+            description_localizations: self.description_localizations,
             required: self.required,
             choices: self.choices,
             options: self.options,
@@ -214,8 +252,14 @@ impl CommandOptionBuilder {
 pub struct ApplicationCommand {
     /// The command name (1–32 chars).
     pub name: String,
+    /// Localized command names keyed by Discord locale code.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub name_localizations: HashMap<String, String>,
     /// Short description (1–100 chars, chat-input only).
     pub description: String,
+    /// Localized command descriptions keyed by Discord locale code.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub description_localizations: HashMap<String, String>,
     /// The kind of command.
     #[serde(rename = "type")]
     pub kind: ApplicationCommandType,
@@ -228,12 +272,29 @@ pub struct ApplicationCommand {
     /// Whether this command is available in DMs (default `true`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dm_permission: Option<bool>,
+    /// Whether the command is age-restricted (NSFW).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nsfw: Option<bool>,
+    /// Installation contexts where the command is available.
+    /// `0` = GUILD_INSTALL, `1` = USER_INSTALL.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub integration_types: Vec<u8>,
+    /// Interaction contexts where the command can be used.
+    /// `0` = GUILD, `1` = BOT_DM, `2` = PRIVATE_CHANNEL.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub contexts: Vec<u8>,
     /// The command ID (only set on responses from Discord).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<Snowflake>,
     /// The application ID (only set on responses from Discord).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub application_id: Option<Snowflake>,
+    /// Guild ID if this is a guild-scoped command (only on responses).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub guild_id: Option<Snowflake>,
+    /// Auto-incrementing version (only set on responses from Discord).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<Snowflake>,
 }
 
 /// Fluent builder for chat-input slash commands.
@@ -251,10 +312,15 @@ pub struct ApplicationCommand {
 /// ```
 pub struct SlashCommandBuilder {
     name: String,
+    name_localizations: HashMap<String, String>,
     description: String,
+    description_localizations: HashMap<String, String>,
     options: Vec<CommandOption>,
     default_member_permissions: Option<String>,
     dm_permission: Option<bool>,
+    nsfw: Option<bool>,
+    integration_types: Vec<u8>,
+    contexts: Vec<u8>,
 }
 
 impl SlashCommandBuilder {
@@ -262,10 +328,15 @@ impl SlashCommandBuilder {
     pub fn new(name: impl Into<String>, description: impl Into<String>) -> Self {
         Self {
             name: name.into(),
+            name_localizations: HashMap::new(),
             description: description.into(),
+            description_localizations: HashMap::new(),
             options: Vec::new(),
             default_member_permissions: None,
             dm_permission: None,
+            nsfw: None,
+            integration_types: Vec::new(),
+            contexts: Vec::new(),
         }
     }
 
@@ -287,17 +358,58 @@ impl SlashCommandBuilder {
         self
     }
 
+    /// Set localized command names.
+    pub fn name_localizations(mut self, map: HashMap<String, String>) -> Self {
+        self.name_localizations = map;
+        self
+    }
+
+    /// Set localized command descriptions.
+    pub fn description_localizations(mut self, map: HashMap<String, String>) -> Self {
+        self.description_localizations = map;
+        self
+    }
+
+    /// Mark this command as age-restricted (NSFW).
+    pub fn nsfw(mut self, nsfw: bool) -> Self {
+        self.nsfw = Some(nsfw);
+        self
+    }
+
+    /// Set the installation contexts where this command is available.
+    ///
+    /// Values: `0` = GUILD_INSTALL, `1` = USER_INSTALL.
+    pub fn integration_types(mut self, types: Vec<u8>) -> Self {
+        self.integration_types = types;
+        self
+    }
+
+    /// Set the interaction contexts where this command can be used.
+    ///
+    /// Values: `0` = GUILD, `1` = BOT_DM, `2` = PRIVATE_CHANNEL.
+    pub fn contexts(mut self, ctx: Vec<u8>) -> Self {
+        self.contexts = ctx;
+        self
+    }
+
     /// Build the final [`ApplicationCommand`].
     pub fn build(self) -> ApplicationCommand {
         ApplicationCommand {
             name: self.name,
+            name_localizations: self.name_localizations,
             description: self.description,
+            description_localizations: self.description_localizations,
             kind: ApplicationCommandType::ChatInput,
             options: self.options,
             default_member_permissions: self.default_member_permissions,
             dm_permission: self.dm_permission,
+            nsfw: self.nsfw,
+            integration_types: self.integration_types,
+            contexts: self.contexts,
             id: None,
             application_id: None,
+            guild_id: None,
+            version: None,
         }
     }
 }

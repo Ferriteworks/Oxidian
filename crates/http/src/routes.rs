@@ -317,6 +317,27 @@ pub enum Route {
     GetSticker { sticker_id: Snowflake },
     /// `GET /sticker-packs/{pack.id}`
     GetStickerPack { pack_id: Snowflake },
+
+    // ── Application Emoji ─────────────────────────────────────────────────
+    /// `GET /applications/{application.id}/emojis`
+    ListApplicationEmojis { application_id: Snowflake },
+    /// `GET /applications/{application.id}/emojis/{emoji.id}`
+    GetApplicationEmoji {
+        application_id: Snowflake,
+        emoji_id: Snowflake,
+    },
+    /// `POST /applications/{application.id}/emojis`
+    CreateApplicationEmoji { application_id: Snowflake },
+    /// `PATCH /applications/{application.id}/emojis/{emoji.id}`
+    ModifyApplicationEmoji {
+        application_id: Snowflake,
+        emoji_id: Snowflake,
+    },
+    /// `DELETE /applications/{application.id}/emojis/{emoji.id}`
+    DeleteApplicationEmoji {
+        application_id: Snowflake,
+        emoji_id: Snowflake,
+    },
 }
 
 impl Route {
@@ -349,7 +370,9 @@ impl Route {
             | Self::GetAuditLog { .. }
             | Self::ListStickerPacks
             | Self::GetSticker { .. }
-            | Self::GetStickerPack { .. } => Method::Get,
+            | Self::GetStickerPack { .. }
+            | Self::ListApplicationEmojis { .. }
+            | Self::GetApplicationEmoji { .. } => Method::Get,
 
             Self::CreateMessage { .. }
             | Self::CreateGlobalCommand { .. }
@@ -364,7 +387,8 @@ impl Route {
             | Self::CreateStageInstance
             | Self::EndPoll { .. }
             | Self::CreateGuildSoundboardSound { .. }
-            | Self::SendSoundboardSound { .. } => Method::Post,
+            | Self::SendSoundboardSound { .. }
+            | Self::CreateApplicationEmoji { .. } => Method::Post,
 
             Self::BulkOverwriteGlobalCommands { .. }
             | Self::BulkOverwriteGuildCommands { .. }
@@ -379,7 +403,8 @@ impl Route {
             | Self::ModifyGuildSticker { .. }
             | Self::ModifyAutoModerationRule { .. }
             | Self::ModifyStageInstance { .. }
-            | Self::ModifyGuildSoundboardSound { .. } => Method::Patch,
+            | Self::ModifyGuildSoundboardSound { .. }
+            | Self::ModifyApplicationEmoji { .. } => Method::Patch,
 
             Self::DeleteMessage { .. }
             | Self::DeleteGlobalCommand { .. }
@@ -391,7 +416,8 @@ impl Route {
             | Self::DeleteAutoModerationRule { .. }
             | Self::DeleteTestEntitlement { .. }
             | Self::DeleteStageInstance { .. }
-            | Self::DeleteGuildSoundboardSound { .. } => Method::Delete,
+            | Self::DeleteGuildSoundboardSound { .. }
+            | Self::DeleteApplicationEmoji { .. } => Method::Delete,
         }
     }
 
@@ -627,6 +653,26 @@ impl Route {
             Self::GetStickerPack { pack_id } => {
                 format!("{base}/sticker-packs/{pack_id}")
             }
+
+            // ── Application Emoji ─────────────────────────────────────────
+            Self::ListApplicationEmojis { application_id } => {
+                format!("{base}/applications/{application_id}/emojis")
+            }
+            Self::GetApplicationEmoji {
+                application_id,
+                emoji_id,
+            } => format!("{base}/applications/{application_id}/emojis/{emoji_id}"),
+            Self::CreateApplicationEmoji { application_id } => {
+                format!("{base}/applications/{application_id}/emojis")
+            }
+            Self::ModifyApplicationEmoji {
+                application_id,
+                emoji_id,
+            } => format!("{base}/applications/{application_id}/emojis/{emoji_id}"),
+            Self::DeleteApplicationEmoji {
+                application_id,
+                emoji_id,
+            } => format!("{base}/applications/{application_id}/emojis/{emoji_id}"),
         }
     }
 
@@ -761,6 +807,15 @@ impl Route {
             Self::ListStickerPacks
             | Self::GetSticker { .. }
             | Self::GetStickerPack { .. } => "sticker-packs".to_owned(),
+
+            // ── Application Emoji ─────────────────────────────────────────
+            Self::ListApplicationEmojis { application_id }
+            | Self::GetApplicationEmoji { application_id, .. }
+            | Self::CreateApplicationEmoji { application_id }
+            | Self::ModifyApplicationEmoji { application_id, .. }
+            | Self::DeleteApplicationEmoji { application_id, .. } => {
+                format!("application:{application_id}:emojis")
+            }
         }
     }
 }

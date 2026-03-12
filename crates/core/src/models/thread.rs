@@ -74,6 +74,20 @@ pub struct Thread {
     pub member_count: Option<u32>,
     /// Approximate message count, capped at 50.
     pub message_count: Option<u32>,
+    /// Total number of messages ever sent in the thread (not decremented by deletes).
+    pub total_message_sent: Option<u32>,
     /// Thread-specific metadata.
     pub thread_metadata: Option<ThreadMetadata>,
+    /// IDs of tags applied to a forum/media thread (max 5).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub applied_tags: Vec<Snowflake>,
+    /// Channel flags bitfield.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flags: Option<u64>,
+    /// Slowmode: seconds a user must wait between messages.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rate_limit_per_user: Option<u32>,
+    /// The ID of the last message sent in this thread.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_message_id: Option<Snowflake>,
 }

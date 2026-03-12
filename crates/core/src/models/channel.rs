@@ -24,6 +24,31 @@ use serde::{Deserialize, Serialize};
 
 use crate::snowflake::Snowflake;
 
+/// A tag available in a forum or media channel.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ForumTag {
+    /// The tag's snowflake ID.
+    pub id: Snowflake,
+    /// The tag name (0–20 characters).
+    pub name: String,
+    /// Whether this tag can only be added/removed by moderators.
+    #[serde(default)]
+    pub moderated: bool,
+    /// The ID of the custom emoji for this tag.
+    pub emoji_id: Option<Snowflake>,
+    /// The Unicode emoji for this tag (if not using a custom emoji).
+    pub emoji_name: Option<String>,
+}
+
+/// The default reaction emoji shown on forum posts.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct DefaultReaction {
+    /// The custom emoji ID, if using a custom emoji.
+    pub emoji_id: Option<Snowflake>,
+    /// The Unicode emoji, if using a standard emoji.
+    pub emoji_name: Option<String>,
+}
+
 /// A Discord channel.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Channel {
@@ -36,6 +61,9 @@ pub struct Channel {
     pub kind: u8,
     /// The guild this channel belongs to, if any.
     pub guild_id: Option<Snowflake>,
+    /// The channel's display position.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub position: Option<u32>,
     /// The channel's name.
     pub name: Option<String>,
     /// The channel's topic, if set.
@@ -47,4 +75,34 @@ pub struct Channel {
     pub last_message_id: Option<Snowflake>,
     /// The ID of the parent category or, for threads, the parent channel.
     pub parent_id: Option<Snowflake>,
+    /// Slowmode: seconds a user must wait between messages (0–21600).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rate_limit_per_user: Option<u32>,
+    /// Channel flags bitfield.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flags: Option<u64>,
+    /// Permission overwrites for this channel.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub permission_overwrites: Vec<serde_json::Value>,
+    // ── Forum / Media channel fields ────────────────────────────────
+    /// Tags available in a forum or media channel.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub available_tags: Vec<ForumTag>,
+    /// The default reaction emoji shown on new forum posts.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_reaction_emoji: Option<DefaultReaction>,
+    /// Default thread auto-archive duration (minutes) for newly created threads.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_auto_archive_duration: Option<u32>,
+    /// Default slowmode for newly created threads.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_thread_rate_limit_per_user: Option<u32>,
+    /// The default sort order for a forum channel.
+    /// `0` = LATEST_ACTIVITY, `1` = CREATION_DATE.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_sort_order: Option<u8>,
+    /// The default forum layout view.
+    /// `0` = NOT_SET, `1` = LIST_VIEW, `2` = GALLERY_VIEW.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_forum_layout: Option<u8>,
 }
