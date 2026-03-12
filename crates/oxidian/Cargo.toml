@@ -2,6 +2,13 @@
 name = "oxidian"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/oxidian"
+description = "A Discord API library for Rust — async, modular, and covering the full v10 API surface."
+keywords = ["discord", "bot", "async", "api", "framework"]
+categories = ["api-bindings"]
 
 [[example]]
 name = "ping_bot"
@@ -28,7 +35,8 @@ oxidian-core         = { workspace = true }
 oxidian-gateway      = { workspace = true }
 oxidian-http         = { workspace = true }
 oxidian-interactions = { workspace = true }
-oxidian-voice        = { workspace = true }
+oxidian-utils        = { workspace = true }
+oxidian-voice        = { workspace = true, optional = true }
 oxidian-cache        = { workspace = true, optional = true }
 tokio                = { workspace = true }
 serde_json           = { workspace = true }
@@ -39,4 +47,5 @@ async-trait          = { workspace = true }
 
 [features]
 default = []
+voice = ["dep:oxidian-voice"]
 cache = ["dep:oxidian-cache"]

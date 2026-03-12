@@ -4,6 +4,7 @@ members = [
     "crates/gateway",
     "crates/http",
     "crates/interactions",
+    "crates/utils",
     "crates/voice",
     "crates/cache",
     "crates/oxidian",
@@ -16,14 +17,17 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/Ferriteworks/Oxidian"
+homepage = "https://github.com/Ferriteworks/Oxidian"
+documentation = "https://docs.rs/oxidian"
 
 [workspace.dependencies]
-oxidian-core         = { path = "crates/core" }
-oxidian-gateway      = { path = "crates/gateway" }
-oxidian-http         = { path = "crates/http" }
-oxidian-interactions = { path = "crates/interactions" }
-oxidian-voice        = { path = "crates/voice" }
-oxidian-cache        = { path = "crates/cache" }
+oxidian-core         = { path = "crates/core",         version = "0.1.0" }
+oxidian-gateway      = { path = "crates/gateway",      version = "0.1.0" }
+oxidian-http         = { path = "crates/http",         version = "0.1.0" }
+oxidian-interactions = { path = "crates/interactions", version = "0.1.0" }
+oxidian-utils        = { path = "crates/utils",        version = "0.1.0" }
+oxidian-voice        = { path = "crates/voice",        version = "0.1.0" }
+oxidian-cache        = { path = "crates/cache",        version = "0.1.0" }
 
 dashmap          = "6"
 serde            = { version = "1", features = ["derive"] }

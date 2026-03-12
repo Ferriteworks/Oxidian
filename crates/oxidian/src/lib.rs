@@ -24,6 +24,10 @@ pub use oxidian_core as core;
 pub use oxidian_gateway as gateway;
 pub use oxidian_http as http;
 pub use oxidian_interactions as interactions;
+pub use oxidian_utils as utils;
+
+/// The voice crate (WebRTC + DAVE E2EE), available when the `voice` feature is enabled.
+#[cfg(feature = "voice")]
 pub use oxidian_voice as voice;
 
 /// The in-memory cache crate, available when the `cache` feature is enabled.
@@ -56,6 +60,7 @@ pub use oxidian_core::snowflake::Snowflake;
 pub use oxidian_core::intents::Intents;
 
 /// Re-export [`VoiceConnection`] at crate root.
+#[cfg(feature = "voice")]
 pub use oxidian_voice::VoiceConnection;
 
 /// High-level [`Bot`] entry point.

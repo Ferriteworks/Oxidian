@@ -2,6 +2,13 @@
 name = "oxidian-gateway"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/oxidian-gateway"
+description = "Discord Gateway (WebSocket) client with sharding and reconnection for Oxidian."
+keywords = ["discord", "bot", "gateway", "websocket", "async"]
+categories = ["api-bindings", "network-programming"]
 
 [dependencies]
 oxidian-core       = { workspace = true }

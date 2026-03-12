@@ -2,6 +2,13 @@
 name = "oxidian-interactions"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/oxidian-interactions"
+description = "Slash commands, components, modals, and autocomplete for the Oxidian Discord library."
+keywords = ["discord", "bot", "slash-commands", "interactions", "async"]
+categories = ["api-bindings"]
 
 [dependencies]
 oxidian-core = { workspace = true }

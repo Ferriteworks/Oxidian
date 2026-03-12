@@ -2,6 +2,13 @@
 name = "oxidian-http"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/oxidian-http"
+description = "Discord HTTP REST client with rate-limiting for Oxidian."
+keywords = ["discord", "bot", "http", "rest", "async"]
+categories = ["api-bindings", "network-programming"]
 
 [dependencies]
 oxidian-core         = { workspace = true }

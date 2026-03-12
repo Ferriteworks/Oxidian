@@ -2,6 +2,13 @@
 name = "oxidian-core"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/oxidian-core"
+description = "Core types, models, and error definitions for the Oxidian Discord library."
+keywords = ["discord", "bot", "models", "api", "async"]
+categories = ["api-bindings"]
 
 [dependencies]
 serde      = { workspace = true }
