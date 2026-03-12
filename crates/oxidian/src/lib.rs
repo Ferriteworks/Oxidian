@@ -26,6 +26,14 @@ pub use oxidian_http as http;
 pub use oxidian_interactions as interactions;
 pub use oxidian_voice as voice;
 
+/// The in-memory cache crate, available when the `cache` feature is enabled.
+#[cfg(feature = "cache")]
+pub use oxidian_cache as cache;
+
+/// Re-export [`Cache`] at crate root for convenience.
+#[cfg(feature = "cache")]
+pub use oxidian_cache::Cache;
+
 /// Re-export the central error type for convenience.
 pub use oxidian_core::error::{Error, Result};
 

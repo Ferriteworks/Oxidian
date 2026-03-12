@@ -29,6 +29,9 @@ use oxidian_core::{error::Result, intents::Intents, models::message::Message};
 use oxidian_gateway::{events::DispatchEvent, Shard, ShardInfo};
 use oxidian_http::HttpClient;
 
+#[cfg(feature = "cache")]
+use oxidian_cache::Cache;
+
 use crate::{
     command::{Command, CommandRegistry, Module},
     context::{Context, GatewayHandle},
@@ -125,10 +128,22 @@ impl Bot {
         // Use the first shard's gateway handle for Context. For multi-shard
         // bots doing voice, you'll want low-level per-shard contexts instead.
         let gateway_handle = GatewayHandle::new(gateway_handles.remove(0));
+
+        #[cfg(feature = "cache")]
+        let cache = Arc::new(Cache::new());
+
+        #[cfg(feature = "cache")]
+        let ctx = Context::new(Arc::clone(&http), gateway_handle, Arc::clone(&cache));
+
+        #[cfg(not(feature = "cache"))]
         let ctx = Context::new(Arc::clone(&http), gateway_handle);
 
         // Dispatch events until the shard drops its sender side.
         while let Some(event) = event_rx.recv().await {
+            // Update cache BEFORE firing user handlers so they see fresh state.
+            #[cfg(feature = "cache")]
+            cache.update(&event);
+
             let ctx = ctx.clone();
             let handler = Arc::clone(&self.handler);
             let commands = Arc::clone(&self.commands);

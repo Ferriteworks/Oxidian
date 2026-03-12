@@ -172,11 +172,15 @@ pub async fn connect(
 
     let hb_tx = heartbeat::spawn(hello.heartbeat_interval, seq_rx, write_tx.clone());
 
+    // Track whether we broke out due to a receive error (vs clean close).
+    let mut broken_by_error = false;
+
     while let Some(result) = stream.next().await {
         let msg = match result {
             Ok(m) => m,
             Err(e) => {
                 error!(error = %e, "WebSocket receive error");
+                broken_by_error = true;
                 break;
             }
         };
@@ -280,6 +284,18 @@ pub async fn connect(
     }
 
     let _ = hb_tx.send(HeartbeatMessage::Stop).await;
+
+    // If the loop exited due to a receive error (network drop, connection
+    // reset, etc.) return the session state so the shard can resume.
+    if broken_by_error {
+        let state = current_session.map(|(session_id, resume_gateway_url)| SessionState {
+            session_id,
+            resume_gateway_url,
+            last_seq: *seq_tx.borrow(),
+        });
+        return Ok(state);
+    }
+
     Ok(None)
 }
 

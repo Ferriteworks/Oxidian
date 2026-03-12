@@ -1,0 +1,10 @@
+[package]
+name = "oxidian-cache"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+oxidian-core    = { workspace = true }
+oxidian-gateway = { workspace = true }
+dashmap         = { workspace = true }
+tracing         = { workspace = true }

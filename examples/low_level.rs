@@ -52,6 +52,14 @@ async fn main() {
 
     // 3. Build a Context (HTTP + gateway handle) — same one used in Bot.
     let gateway = GatewayHandle::new(shard.gateway_sender());
+
+    #[cfg(feature = "cache")]
+    let cache = std::sync::Arc::new(oxidian::Cache::new());
+
+    #[cfg(feature = "cache")]
+    let ctx = Context::new(Arc::clone(&http), gateway, cache);
+
+    #[cfg(not(feature = "cache"))]
     let ctx = Context::new(Arc::clone(&http), gateway);
 
     // 4. Drive the shard on a background task.

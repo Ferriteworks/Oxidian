@@ -32,6 +32,9 @@ use oxidian_core::{
 };
 use oxidian_http::HttpClient;
 
+#[cfg(feature = "cache")]
+use oxidian_cache::Cache;
+
 /// A handle for sending outbound messages to the Discord gateway WebSocket.
 ///
 /// Obtained via [`Context::gateway`].  Cheap to clone.
@@ -101,12 +104,28 @@ pub struct Context {
     pub http: Arc<HttpClient>,
     /// A handle for sending outbound gateway commands (e.g. voice state update).
     pub gateway: GatewayHandle,
+    /// The in-memory cache, when the `cache` feature is enabled.
+    #[cfg(feature = "cache")]
+    pub cache: Arc<Cache>,
 }
 
 impl Context {
     /// Create a new `Context`.
     ///
     /// This is useful when building a custom event loop without `Bot`.
+    #[cfg(feature = "cache")]
+    pub fn new(http: Arc<HttpClient>, gateway: GatewayHandle, cache: Arc<Cache>) -> Self {
+        Self {
+            http,
+            gateway,
+            cache,
+        }
+    }
+
+    /// Create a new `Context`.
+    ///
+    /// This is useful when building a custom event loop without `Bot`.
+    #[cfg(not(feature = "cache"))]
     pub fn new(http: Arc<HttpClient>, gateway: GatewayHandle) -> Self {
         Self { http, gateway }
     }
