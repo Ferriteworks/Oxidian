@@ -24,6 +24,53 @@ use serde::{Deserialize, Serialize};
 
 use crate::snowflake::Snowflake;
 
+/// The type of a Discord channel.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "u8", into = "u8")]
+pub enum ChannelType {
+    GuildText = 0,
+    Dm = 1,
+    GuildVoice = 2,
+    GroupDm = 3,
+    GuildCategory = 4,
+    GuildAnnouncement = 5,
+    AnnouncementThread = 10,
+    PublicThread = 11,
+    PrivateThread = 12,
+    GuildStageVoice = 13,
+    GuildDirectory = 14,
+    GuildForum = 15,
+    GuildMedia = 16,
+}
+
+impl TryFrom<u8> for ChannelType {
+    type Error = String;
+    fn try_from(v: u8) -> Result<Self, Self::Error> {
+        match v {
+            0 => Ok(Self::GuildText),
+            1 => Ok(Self::Dm),
+            2 => Ok(Self::GuildVoice),
+            3 => Ok(Self::GroupDm),
+            4 => Ok(Self::GuildCategory),
+            5 => Ok(Self::GuildAnnouncement),
+            10 => Ok(Self::AnnouncementThread),
+            11 => Ok(Self::PublicThread),
+            12 => Ok(Self::PrivateThread),
+            13 => Ok(Self::GuildStageVoice),
+            14 => Ok(Self::GuildDirectory),
+            15 => Ok(Self::GuildForum),
+            16 => Ok(Self::GuildMedia),
+            _ => Err(format!("unknown channel type: {v}")),
+        }
+    }
+}
+
+impl From<ChannelType> for u8 {
+    fn from(v: ChannelType) -> u8 {
+        v as u8
+    }
+}
+
 /// A tag available in a forum or media channel.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ForumTag {
@@ -54,11 +101,9 @@ pub struct DefaultReaction {
 pub struct Channel {
     /// The channel's unique snowflake ID.
     pub id: Snowflake,
-    /// The channel type integer. See the
-    /// [Discord docs](https://discord.com/developers/docs/resources/channel#channel-object-channel-types)
-    /// for the full list of values.
+    /// The channel type.
     #[serde(rename = "type")]
-    pub kind: u8,
+    pub kind: ChannelType,
     /// The guild this channel belongs to, if any.
     pub guild_id: Option<Snowflake>,
     /// The channel's display position.

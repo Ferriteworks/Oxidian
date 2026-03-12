@@ -78,6 +78,54 @@ pub enum Route {
         /// The ID of the message to delete.
         message_id: Snowflake,
     },
+    /// `POST /channels/{channel.id}/messages/bulk-delete`
+    BulkDeleteMessages {
+        /// The channel containing the messages to delete.
+        channel_id: Snowflake,
+    },
+    /// `PUT /channels/{channel.id}/messages/{message.id}/reactions/{emoji}/@me`
+    CreateReaction {
+        /// The channel containing the message.
+        channel_id: Snowflake,
+        /// The message to react to.
+        message_id: Snowflake,
+        /// The URL-encoded emoji identifier.
+        emoji: String,
+    },
+    /// `DELETE /channels/{channel.id}/messages/{message.id}/reactions/{emoji}/@me`
+    DeleteReaction {
+        /// The channel containing the message.
+        channel_id: Snowflake,
+        /// The message to remove the reaction from.
+        message_id: Snowflake,
+        /// The URL-encoded emoji identifier.
+        emoji: String,
+    },
+    /// `DELETE /channels/{channel.id}/messages/{message.id}/reactions`
+    DeleteAllReactions {
+        /// The channel containing the message.
+        channel_id: Snowflake,
+        /// The message to clear reactions from.
+        message_id: Snowflake,
+    },
+    /// `DELETE /channels/{channel.id}/messages/{message.id}/reactions/{emoji}`
+    DeleteAllReactionsForEmoji {
+        /// The channel containing the message.
+        channel_id: Snowflake,
+        /// The message to clear reactions from.
+        message_id: Snowflake,
+        /// The URL-encoded emoji identifier.
+        emoji: String,
+    },
+    /// `GET /channels/{channel.id}/messages/{message.id}/reactions/{emoji}`
+    GetReactions {
+        /// The channel containing the message.
+        channel_id: Snowflake,
+        /// The message to fetch reactions from.
+        message_id: Snowflake,
+        /// The URL-encoded emoji identifier.
+        emoji: String,
+    },
 
     /// `GET /guilds/{guild.id}`
     GetGuild {
@@ -94,6 +142,12 @@ pub enum Route {
 
     /// `GET /users/@me`
     GetCurrentUser,
+    /// `PATCH /users/@me`
+    ModifyCurrentUser,
+    /// `GET /users/@me/guilds`
+    GetCurrentUserGuilds,
+    /// `POST /users/@me/channels`
+    CreateDm,
     /// `GET /users/{user.id}`
     GetUser {
         /// The ID of the user to fetch.
@@ -142,6 +196,11 @@ pub enum Route {
     },
     /// `PATCH /channels/{channel.id}/messages/{message.id}`
     EditMessage {
+        channel_id: Snowflake,
+        message_id: Snowflake,
+    },
+    /// `POST /channels/{channel.id}/messages/{message.id}/crosspost`
+    CrosspostMessage {
         channel_id: Snowflake,
         message_id: Snowflake,
     },
@@ -346,9 +405,11 @@ impl Route {
         match self {
             Self::GetChannel { .. }
             | Self::GetMessage { .. }
+            | Self::GetReactions { .. }
             | Self::GetGuild { .. }
             | Self::GetGuildMember { .. }
             | Self::GetCurrentUser
+            | Self::GetCurrentUserGuilds
             | Self::GetUser { .. }
             | Self::GetGatewayBot
             | Self::GetGlobalCommands { .. }
@@ -375,9 +436,12 @@ impl Route {
             | Self::GetApplicationEmoji { .. } => Method::Get,
 
             Self::CreateMessage { .. }
+            | Self::BulkDeleteMessages { .. }
+            | Self::CreateDm
             | Self::CreateGlobalCommand { .. }
             | Self::CreateGuildCommand { .. }
             | Self::CreateInteractionResponse { .. }
+            | Self::CrosspostMessage { .. }
             | Self::CreateThread { .. }
             | Self::CreateThreadFromMessage { .. }
             | Self::CreateScheduledEvent { .. }
@@ -392,10 +456,12 @@ impl Route {
 
             Self::BulkOverwriteGlobalCommands { .. }
             | Self::BulkOverwriteGuildCommands { .. }
+            | Self::CreateReaction { .. }
             | Self::JoinThread { .. }
             | Self::AddThreadMember { .. } => Method::Put,
 
             Self::EditMessage { .. }
+            | Self::ModifyCurrentUser
             | Self::EditOriginalInteractionResponse { .. }
             | Self::ModifyThread { .. }
             | Self::ModifyGuildMember { .. }
@@ -409,6 +475,9 @@ impl Route {
             Self::DeleteMessage { .. }
             | Self::DeleteGlobalCommand { .. }
             | Self::DeleteGuildCommand { .. }
+            | Self::DeleteReaction { .. }
+            | Self::DeleteAllReactions { .. }
+            | Self::DeleteAllReactionsForEmoji { .. }
             | Self::LeaveThread { .. }
             | Self::RemoveThreadMember { .. }
             | Self::DeleteScheduledEvent { .. }
@@ -435,11 +504,49 @@ impl Route {
                 channel_id,
                 message_id,
             } => format!("{base}/channels/{channel_id}/messages/{message_id}"),
+            Self::BulkDeleteMessages { channel_id } => {
+                format!("{base}/channels/{channel_id}/messages/bulk-delete")
+            }
+            Self::CreateReaction {
+                channel_id,
+                message_id,
+                emoji,
+            } => format!(
+                "{base}/channels/{channel_id}/messages/{message_id}/reactions/{emoji}/@me"
+            ),
+            Self::DeleteReaction {
+                channel_id,
+                message_id,
+                emoji,
+            } => format!(
+                "{base}/channels/{channel_id}/messages/{message_id}/reactions/{emoji}/@me"
+            ),
+            Self::DeleteAllReactions {
+                channel_id,
+                message_id,
+            } => format!("{base}/channels/{channel_id}/messages/{message_id}/reactions"),
+            Self::DeleteAllReactionsForEmoji {
+                channel_id,
+                message_id,
+                emoji,
+            } => format!(
+                "{base}/channels/{channel_id}/messages/{message_id}/reactions/{emoji}"
+            ),
+            Self::GetReactions {
+                channel_id,
+                message_id,
+                emoji,
+            } => format!(
+                "{base}/channels/{channel_id}/messages/{message_id}/reactions/{emoji}"
+            ),
             Self::GetGuild { guild_id } => format!("{base}/guilds/{guild_id}"),
             Self::GetGuildMember { guild_id, user_id } => {
                 format!("{base}/guilds/{guild_id}/members/{user_id}")
             }
             Self::GetCurrentUser => format!("{base}/users/@me"),
+            Self::ModifyCurrentUser => format!("{base}/users/@me"),
+            Self::GetCurrentUserGuilds => format!("{base}/users/@me/guilds"),
+            Self::CreateDm => format!("{base}/users/@me/channels"),
             Self::GetUser { user_id } => format!("{base}/users/{user_id}"),
             Self::GetGatewayBot => format!("{base}/gateway/bot"),
             Self::GetGlobalCommands { application_id } => {
@@ -482,6 +589,10 @@ impl Route {
                 channel_id,
                 message_id,
             } => format!("{base}/channels/{channel_id}/messages/{message_id}"),
+            Self::CrosspostMessage {
+                channel_id,
+                message_id,
+            } => format!("{base}/channels/{channel_id}/messages/{message_id}/crosspost"),
             Self::EditOriginalInteractionResponse {
                 application_id,
                 interaction_token,
@@ -688,7 +799,14 @@ impl Route {
             | Self::CreateMessage { channel_id }
             | Self::GetMessage { channel_id, .. }
             | Self::DeleteMessage { channel_id, .. }
+            | Self::BulkDeleteMessages { channel_id }
+            | Self::CreateReaction { channel_id, .. }
+            | Self::DeleteReaction { channel_id, .. }
+            | Self::DeleteAllReactions { channel_id, .. }
+            | Self::DeleteAllReactionsForEmoji { channel_id, .. }
+            | Self::GetReactions { channel_id, .. }
             | Self::EditMessage { channel_id, .. }
+            | Self::CrosspostMessage { channel_id, .. }
             | Self::CreateThread { channel_id }
             | Self::CreateThreadFromMessage { channel_id, .. }
             | Self::ListPublicArchivedThreads { channel_id }
@@ -708,9 +826,12 @@ impl Route {
                 format!("guild:{guild_id}")
             }
 
-            Self::GetCurrentUser | Self::GetUser { .. } | Self::GetGatewayBot => {
-                "global".to_owned()
-            }
+            Self::GetCurrentUser
+            | Self::ModifyCurrentUser
+            | Self::GetCurrentUserGuilds
+            | Self::CreateDm
+            | Self::GetUser { .. }
+            | Self::GetGatewayBot => "global".to_owned(),
 
             Self::GetGlobalCommands { application_id }
             | Self::CreateGlobalCommand { application_id }

@@ -24,7 +24,36 @@ use serde::{Deserialize, Serialize};
 
 use crate::snowflake::Snowflake;
 
-use super::{embed::Embed, user::User};
+use super::{
+    allowed_mentions::AllowedMentions, embed::Embed, emoji::Emoji, user::User,
+};
+
+/// A file attached to a Discord message.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Attachment {
+    pub id: Snowflake,
+    pub filename: String,
+    pub size: u64,
+    pub url: String,
+    pub proxy_url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub width: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub height: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+/// A reaction entry on a Discord message.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Reaction {
+    pub count: u32,
+    #[serde(default)]
+    pub me: bool,
+    pub emoji: Emoji,
+}
 
 // ---------------------------------------------------------------------------
 // MessageReference — for replies and forwards
@@ -102,7 +131,7 @@ pub struct MessageSnapshotData {
     pub embeds: Vec<Embed>,
     /// Attachments from the original message.
     #[serde(default)]
-    pub attachments: Vec<serde_json::Value>,
+    pub attachments: Vec<Attachment>,
     /// Timestamp of the original message.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timestamp: Option<String>,
@@ -169,7 +198,7 @@ pub struct Message {
     pub embeds: Vec<Embed>,
     /// File attachments.
     #[serde(default)]
-    pub attachments: Vec<serde_json::Value>,
+    pub attachments: Vec<Attachment>,
     /// Components attached to this message.
     #[serde(default)]
     pub components: Vec<serde_json::Value>,
@@ -178,7 +207,7 @@ pub struct Message {
     pub sticker_items: Vec<serde_json::Value>,
     /// Reactions on the message.
     #[serde(default)]
-    pub reactions: Vec<serde_json::Value>,
+    pub reactions: Vec<Reaction>,
     /// The thread that was started from this message, if any.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thread: Option<serde_json::Value>,
@@ -223,7 +252,7 @@ pub struct CreateMessage {
     pub sticker_ids: Vec<Snowflake>,
     /// Allowed mentions configuration.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub allowed_mentions: Option<serde_json::Value>,
+    pub allowed_mentions: Option<AllowedMentions>,
     /// Whether this is a TTS message.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tts: Option<bool>,
@@ -305,7 +334,7 @@ impl CreateMessage {
     }
 
     /// Set allowed mentions.
-    pub fn allowed_mentions(mut self, mentions: serde_json::Value) -> Self {
+    pub fn allowed_mentions(mut self, mentions: AllowedMentions) -> Self {
         self.allowed_mentions = Some(mentions);
         self
     }

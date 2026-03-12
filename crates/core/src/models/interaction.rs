@@ -236,15 +236,14 @@ pub struct ModalSubmitData {
     pub components: Vec<serde_json::Value>,
 }
 
-/// The data payload of an interaction, discriminated by unique required fields.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
+/// The data payload of an interaction, discriminated by the interaction's `type` field.
+#[derive(Debug, Clone, Serialize)]
 pub enum InteractionData {
-    /// Data from an application command invocation (has `id` + `name` + `type`).
+    /// Data from an application command invocation (kind 2 or 4).
     ApplicationCommand(ApplicationCommandData),
-    /// Data from a message component interaction (has `component_type`).
+    /// Data from a message component interaction (kind 3).
     MessageComponent(MessageComponentData),
-    /// Data from a modal submission (has `components` array).
+    /// Data from a modal submission (kind 5).
     ModalSubmit(ModalSubmitData),
 }
 
@@ -252,7 +251,10 @@ pub enum InteractionData {
 ///
 /// Interactions are delivered as `INTERACTION_CREATE` gateway dispatch events
 /// and must be acknowledged within 3 seconds.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+///
+/// The `data` field is deserialized using the `type` (`kind`) field as a
+/// discriminant, avoiding the fragile `#[serde(untagged)]` ordering.
+#[derive(Debug, Clone, Serialize)]
 pub struct Interaction {
     /// Unique ID of this interaction instance.
     pub id: Snowflake,
@@ -339,6 +341,123 @@ impl Interaction {
             Some(InteractionData::ModalSubmit(d)) => Some(d),
             _ => None,
         }
+    }
+}
+
+/// Custom `Deserialize` for [`Interaction`] that uses the `type` field as a
+/// discriminant when deserializing `data`, replacing the fragile
+/// `#[serde(untagged)]` approach that relies on field-presence ordering.
+impl<'de> serde::Deserialize<'de> for Interaction {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error as _;
+
+        // Intermediate struct: identical to Interaction but `data` stays raw.
+        #[derive(serde::Deserialize)]
+        struct RawInteraction {
+            id: Snowflake,
+            application_id: Snowflake,
+            #[serde(rename = "type")]
+            kind: InteractionType,
+            #[serde(default)]
+            data: Option<serde_json::Value>,
+            #[serde(default)]
+            guild_id: Option<Snowflake>,
+            #[serde(default)]
+            channel_id: Option<Snowflake>,
+            #[serde(default)]
+            member: Option<Member>,
+            #[serde(default)]
+            user: Option<User>,
+            token: String,
+            #[serde(default)]
+            version: u8,
+            #[serde(default)]
+            message: Option<Message>,
+            #[serde(default)]
+            app_permissions: Option<String>,
+            #[serde(default)]
+            locale: Option<String>,
+            #[serde(default)]
+            guild_locale: Option<String>,
+            #[serde(default)]
+            entitlements: Vec<serde_json::Value>,
+            #[serde(default)]
+            authorizing_integration_owners: Option<HashMap<String, Snowflake>>,
+            #[serde(default)]
+            context: Option<u8>,
+            #[serde(default)]
+            channel: Option<Channel>,
+        }
+
+        let raw = RawInteraction::deserialize(deserializer)?;
+
+        // Use the `kind` field to pick the correct `InteractionData` variant.
+        let data = match raw.data {
+            None => None,
+            Some(raw_data) => {
+                let parsed = match raw.kind {
+                    InteractionType::ApplicationCommand
+                    | InteractionType::ApplicationCommandAutocomplete => {
+                        serde_json::from_value::<ApplicationCommandData>(raw_data)
+                            .map(InteractionData::ApplicationCommand)
+                            .map_err(|e| {
+                                D::Error::custom(format!(
+                                    "failed to deserialize ApplicationCommandData: {e}"
+                                ))
+                            })?
+                    }
+                    InteractionType::MessageComponent => {
+                        serde_json::from_value::<MessageComponentData>(raw_data)
+                            .map(InteractionData::MessageComponent)
+                            .map_err(|e| {
+                                D::Error::custom(format!(
+                                    "failed to deserialize MessageComponentData: {e}"
+                                ))
+                            })?
+                    }
+                    InteractionType::ModalSubmit => {
+                        serde_json::from_value::<ModalSubmitData>(raw_data)
+                            .map(InteractionData::ModalSubmit)
+                            .map_err(|e| {
+                                D::Error::custom(format!(
+                                    "failed to deserialize ModalSubmitData: {e}"
+                                ))
+                            })?
+                    }
+                    InteractionType::Ping => {
+                        // Ping payloads should never carry a data field.
+                        return Err(D::Error::custom(
+                            "Ping interaction unexpectedly contained a data field",
+                        ));
+                    }
+                };
+                Some(parsed)
+            }
+        };
+
+        Ok(Interaction {
+            id: raw.id,
+            application_id: raw.application_id,
+            kind: raw.kind,
+            data,
+            guild_id: raw.guild_id,
+            channel_id: raw.channel_id,
+            member: raw.member,
+            user: raw.user,
+            token: raw.token,
+            version: raw.version,
+            message: raw.message,
+            app_permissions: raw.app_permissions,
+            locale: raw.locale,
+            guild_locale: raw.guild_locale,
+            entitlements: raw.entitlements,
+            authorizing_integration_owners: raw.authorizing_integration_owners,
+            context: raw.context,
+            channel: raw.channel,
+        })
     }
 }
 

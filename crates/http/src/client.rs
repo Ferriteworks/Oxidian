@@ -195,7 +195,11 @@ impl HttpClient {
             };
 
             return serde_json::from_str::<T>(effective).map_err(|e| {
-                HttpError::Decode(format!("{e} — body: {response_text}")).into()
+                HttpError::Decode(format!(
+                    "failed to deserialize {}: {e} — body: {response_text}",
+                    std::any::type_name::<T>()
+                ))
+                .into()
             });
         }
 
@@ -205,6 +209,26 @@ impl HttpClient {
     /// Fetch the current bot user (`GET /users/@me`).
     pub async fn get_current_user(&self) -> Result<Value, OxidianError> {
         self.request(Route::GetCurrentUser, None).await
+    }
+
+    /// Modify the current bot user (`PATCH /users/@me`).
+    pub async fn modify_current_user(
+        &self,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::ModifyCurrentUser, Some(body)).await
+    }
+
+    /// List the current bot user's guilds (`GET /users/@me/guilds`).
+    pub async fn get_current_user_guilds(&self) -> Result<Value, OxidianError> {
+        self.request(Route::GetCurrentUserGuilds, None).await
+    }
+
+    /// Create or fetch a DM channel with a user (`POST /users/@me/channels`).
+    ///
+    /// `body` must include a `recipient_id` field.
+    pub async fn create_dm(&self, body: Value) -> Result<Value, OxidianError> {
+        self.request(Route::CreateDm, Some(body)).await
     }
 
     /// Fetch a user by ID (`GET /users/{user.id}`).
@@ -234,6 +258,106 @@ impl HttpClient {
     ) -> Result<Value, OxidianError> {
         self.request(Route::CreateMessage { channel_id }, Some(body))
             .await
+    }
+
+    /// Bulk delete up to 100 messages in a channel.
+    ///
+    /// `body` must contain a `messages` array of snowflake IDs.
+    pub async fn bulk_delete_messages(
+        &self,
+        channel_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<(), OxidianError> {
+        self.request(Route::BulkDeleteMessages { channel_id }, Some(body))
+            .await
+    }
+
+    /// Add the current bot user's reaction to a message.
+    pub async fn create_reaction(
+        &self,
+        channel_id: oxidian_core::snowflake::Snowflake,
+        message_id: oxidian_core::snowflake::Snowflake,
+        emoji: impl Into<String>,
+    ) -> Result<(), OxidianError> {
+        self.request(
+            Route::CreateReaction {
+                channel_id,
+                message_id,
+                emoji: emoji.into(),
+            },
+            None,
+        )
+        .await
+    }
+
+    /// Remove the current bot user's reaction from a message.
+    pub async fn delete_reaction(
+        &self,
+        channel_id: oxidian_core::snowflake::Snowflake,
+        message_id: oxidian_core::snowflake::Snowflake,
+        emoji: impl Into<String>,
+    ) -> Result<(), OxidianError> {
+        self.request(
+            Route::DeleteReaction {
+                channel_id,
+                message_id,
+                emoji: emoji.into(),
+            },
+            None,
+        )
+        .await
+    }
+
+    /// Remove all reactions from a message.
+    pub async fn delete_all_reactions(
+        &self,
+        channel_id: oxidian_core::snowflake::Snowflake,
+        message_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<(), OxidianError> {
+        self.request(
+            Route::DeleteAllReactions {
+                channel_id,
+                message_id,
+            },
+            None,
+        )
+        .await
+    }
+
+    /// Remove all reactions for a specific emoji from a message.
+    pub async fn delete_all_reactions_for_emoji(
+        &self,
+        channel_id: oxidian_core::snowflake::Snowflake,
+        message_id: oxidian_core::snowflake::Snowflake,
+        emoji: impl Into<String>,
+    ) -> Result<(), OxidianError> {
+        self.request(
+            Route::DeleteAllReactionsForEmoji {
+                channel_id,
+                message_id,
+                emoji: emoji.into(),
+            },
+            None,
+        )
+        .await
+    }
+
+    /// List users who reacted to a message with a specific emoji.
+    pub async fn get_reactions(
+        &self,
+        channel_id: oxidian_core::snowflake::Snowflake,
+        message_id: oxidian_core::snowflake::Snowflake,
+        emoji: impl Into<String>,
+    ) -> Result<Value, OxidianError> {
+        self.request(
+            Route::GetReactions {
+                channel_id,
+                message_id,
+                emoji: emoji.into(),
+            },
+            None,
+        )
+        .await
     }
 
     /// Delete a message (`DELETE /channels/{channel.id}/messages/{message.id}`).
@@ -432,6 +556,22 @@ impl HttpClient {
                 message_id,
             },
             Some(body),
+        )
+        .await
+    }
+
+    /// Crosspost an announcement message to follower channels.
+    pub async fn crosspost_message(
+        &self,
+        channel_id: oxidian_core::snowflake::Snowflake,
+        message_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(
+            Route::CrosspostMessage {
+                channel_id,
+                message_id,
+            },
+            None,
         )
         .await
     }
@@ -1212,7 +1352,11 @@ impl HttpClient {
             };
 
             return serde_json::from_str::<T>(effective).map_err(|e| {
-                HttpError::Decode(format!("{e} — body: {response_text}")).into()
+                HttpError::Decode(format!(
+                    "failed to deserialize {}: {e} — body: {response_text}",
+                    std::any::type_name::<T>()
+                ))
+                .into()
             });
         }
         unreachable!()

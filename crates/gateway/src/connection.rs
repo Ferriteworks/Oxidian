@@ -321,14 +321,23 @@ async fn recv_hello(stream: &mut WsStream) -> Result<HelloData, OxidianError> {
             }
         };
 
-        let payload: GatewayPayload =
-            serde_json::from_str(&text).map_err(OxidianError::Serialization)?;
+        let payload: GatewayPayload = serde_json::from_str(&text).map_err(|e| {
+            OxidianError::Serialization(serde_json::Error::io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("failed to deserialize GatewayPayload in Hello: {e}"),
+            )))
+        })?;
 
         if payload.op == Opcode::Hello as u8 {
             let data = payload.d.ok_or_else(|| {
                 GatewayError::Connection("Hello payload missing 'd' field".to_owned())
             })?;
-            return serde_json::from_value(data).map_err(OxidianError::Serialization);
+            return serde_json::from_value(data).map_err(|e| {
+                OxidianError::Serialization(serde_json::Error::io(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("failed to deserialize HelloData: {e}"),
+                )))
+            });
         }
     }
 
