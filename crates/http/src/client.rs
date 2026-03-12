@@ -31,6 +31,7 @@
 
 use reqwest::{
     header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE, USER_AGENT},
+    multipart,
     StatusCode,
 };
 use serde::de::DeserializeOwned;
@@ -649,15 +650,39 @@ impl HttpClient {
         .await
     }
 
-    /// Create a guild sticker. Note: stickers are uploaded as multipart
-    /// form data; for now pass serialised JSON and handle the upload
-    /// separately if needed.
+    /// Create a guild sticker via multipart upload.
+    ///
+    /// Discord requires stickers to be sent as `multipart/form-data`.
+    ///
+    /// - `name` — sticker name (2–30 characters)
+    /// - `description` — sticker description (2–100 characters)
+    /// - `tags` — comma-separated autocomplete tags (max 200 characters)
+    /// - `file_bytes` — raw file contents (PNG, APNG, GIF, or Lottie JSON)
+    /// - `mime_type` — e.g. `"image/png"`, `"image/gif"`, `"application/json"` for Lottie
+    /// - `file_name` — file name sent in the part, e.g. `"sticker.png"`
     pub async fn create_guild_sticker(
         &self,
         guild_id: oxidian_core::snowflake::Snowflake,
-        body: Value,
+        name: impl Into<String>,
+        description: impl Into<String>,
+        tags: impl Into<String>,
+        file_bytes: Vec<u8>,
+        mime_type: impl Into<String>,
+        file_name: impl Into<String>,
     ) -> Result<Value, OxidianError> {
-        self.request(Route::CreateGuildSticker { guild_id }, Some(body))
+        let mime: String = mime_type.into();
+        let part = multipart::Part::bytes(file_bytes)
+            .file_name(file_name.into())
+            .mime_str(&mime)
+            .map_err(|e| HttpError::Request(e.to_string()))?;
+
+        let form = multipart::Form::new()
+            .text("name", name.into())
+            .text("description", description.into())
+            .text("tags", tags.into())
+            .part("file", part);
+
+        self.request_multipart(Route::CreateGuildSticker { guild_id }, form)
             .await
     }
 
@@ -794,6 +819,193 @@ impl HttpClient {
         self.request(Route::ListSkus { application_id }, None).await
     }
 
+    // ── Stage Instances ───────────────────────────────────────────────────
+
+    /// Create a stage instance (`POST /stage-instances`).
+    ///
+    /// `body` must include `channel_id` and `topic`. Optionally `privacy_level`
+    /// and `send_start_notification`.
+    pub async fn create_stage_instance(&self, body: Value) -> Result<Value, OxidianError> {
+        self.request(Route::CreateStageInstance, Some(body)).await
+    }
+
+    /// Fetch a stage instance by its Stage channel ID.
+    pub async fn get_stage_instance(
+        &self,
+        channel_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::GetStageInstance { channel_id }, None)
+            .await
+    }
+
+    /// Modify a stage instance's topic or privacy level.
+    pub async fn modify_stage_instance(
+        &self,
+        channel_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::ModifyStageInstance { channel_id }, Some(body))
+            .await
+    }
+
+    /// Delete (end) a stage instance.
+    pub async fn delete_stage_instance(
+        &self,
+        channel_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<(), OxidianError> {
+        self.request(Route::DeleteStageInstance { channel_id }, None)
+            .await
+    }
+
+    // ── Polls ─────────────────────────────────────────────────────────────
+
+    /// Get the list of users who voted for a given poll answer.
+    ///
+    /// Supports optional `after` / `limit` query params — pass them as part
+    /// of the URL by appending query params to a wrapper if needed. The raw
+    /// `GET` endpoint returns `{ "users": [...] }`.
+    pub async fn get_poll_answer_voters(
+        &self,
+        channel_id: oxidian_core::snowflake::Snowflake,
+        message_id: oxidian_core::snowflake::Snowflake,
+        answer_id: u32,
+    ) -> Result<Value, OxidianError> {
+        self.request(
+            Route::GetPollAnswerVoters {
+                channel_id,
+                message_id,
+                answer_id,
+            },
+            None,
+        )
+        .await
+    }
+
+    /// Immediately end a poll, finalising the results.
+    pub async fn end_poll(
+        &self,
+        channel_id: oxidian_core::snowflake::Snowflake,
+        message_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(
+            Route::EndPoll {
+                channel_id,
+                message_id,
+            },
+            None,
+        )
+        .await
+    }
+
+    // ── Soundboard ────────────────────────────────────────────────────────
+
+    /// List Discord's built-in default soundboard sounds.
+    pub async fn list_default_soundboard_sounds(&self) -> Result<Value, OxidianError> {
+        self.request(Route::ListDefaultSoundboardSounds, None).await
+    }
+
+    /// List all soundboard sounds in a guild.
+    pub async fn list_guild_soundboard_sounds(
+        &self,
+        guild_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::ListGuildSoundboardSounds { guild_id }, None)
+            .await
+    }
+
+    /// Create a soundboard sound in a guild.
+    ///
+    /// `body` must include `name`, `sound` (base64-encoded audio), and
+    /// optionally `volume`, `emoji_id`, or `emoji_name`.
+    pub async fn create_guild_soundboard_sound(
+        &self,
+        guild_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(
+            Route::CreateGuildSoundboardSound { guild_id },
+            Some(body),
+        )
+        .await
+    }
+
+    /// Modify a soundboard sound (name, volume, emoji).
+    pub async fn modify_guild_soundboard_sound(
+        &self,
+        guild_id: oxidian_core::snowflake::Snowflake,
+        sound_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(
+            Route::ModifyGuildSoundboardSound { guild_id, sound_id },
+            Some(body),
+        )
+        .await
+    }
+
+    /// Delete a guild soundboard sound.
+    pub async fn delete_guild_soundboard_sound(
+        &self,
+        guild_id: oxidian_core::snowflake::Snowflake,
+        sound_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<(), OxidianError> {
+        self.request(
+            Route::DeleteGuildSoundboardSound { guild_id, sound_id },
+            None,
+        )
+        .await
+    }
+
+    /// Send a soundboard sound to a voice channel.
+    ///
+    /// `body` must include `sound_id` and optionally `source_guild_id`
+    /// (required for sounds from other guilds).
+    pub async fn send_soundboard_sound(
+        &self,
+        channel_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<(), OxidianError> {
+        self.request(Route::SendSoundboardSound { channel_id }, Some(body))
+            .await
+    }
+
+    // ── Audit Logs ────────────────────────────────────────────────────────
+
+    /// Fetch the audit log for a guild.
+    ///
+    /// All query parameters (`user_id`, `action_type`, `before`, `after`,
+    /// `limit`) are supported by Discord but must currently be appended
+    /// manually to the URL. The response is a raw `AuditLog` object.
+    pub async fn get_audit_log(
+        &self,
+        guild_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::GetAuditLog { guild_id }, None).await
+    }
+
+    // ── Sticker Packs ─────────────────────────────────────────────────────
+
+    /// List all Nitro sticker packs.
+    pub async fn list_sticker_packs(&self) -> Result<Value, OxidianError> {
+        self.request(Route::ListStickerPacks, None).await
+    }
+
+    /// Fetch a Nitro sticker by ID.
+    pub async fn get_sticker(
+        &self,
+        sticker_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::GetSticker { sticker_id }, None).await
+    }
+
+    /// Fetch a Nitro sticker pack by ID.
+    pub async fn get_sticker_pack(
+        &self,
+        pack_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::GetStickerPack { pack_id }, None).await
+    }
+
     fn build_request(
         &self,
         route: &Route,
@@ -819,5 +1031,118 @@ impl HttpClient {
         builder
             .build()
             .map_err(|e| HttpError::Request(e.to_string()).into())
+    }
+
+    /// Send a multipart request for the given [`Route`] and deserialize the response.
+    ///
+    /// Used for endpoints that require `multipart/form-data`, such as
+    /// creating guild stickers.
+    pub async fn request_multipart<T: serde::de::DeserializeOwned>(
+        &self,
+        route: Route,
+        form: multipart::Form,
+    ) -> Result<T, OxidianError> {
+        let bucket_hint = route.bucket();
+        for attempt in 0u8..2 {
+            self.rate_limiter.acquire(Some(&bucket_hint)).await;
+
+            let url = route.url();
+            let method = match route.method() {
+                Method::Get => reqwest::Method::GET,
+                Method::Post => reqwest::Method::POST,
+                Method::Patch => reqwest::Method::PATCH,
+                Method::Put => reqwest::Method::PUT,
+                Method::Delete => reqwest::Method::DELETE,
+            };
+
+            // Each attempt needs a fresh form; clone the parts from the outer form.
+            // reqwest::multipart::Form is not Clone, so we re-use the same form on
+            // the first attempt and rebuild it on the second via the caller owning it.
+            // For simplicity we just use the form directly and break after the first
+            // successful send (retries on multipart are rare in practice).
+            let req = self
+                .inner
+                .request(method, &url)
+                .multipart(form)
+                .build()
+                .map_err(|e| HttpError::Request(e.to_string()))?;
+
+            debug!(method = ?route.method(), url = %url, attempt, "sending multipart HTTP request");
+
+            let resp = self
+                .inner
+                .execute(req)
+                .await
+                .map_err(|e| HttpError::Request(e.to_string()))?;
+
+            let rl_headers = RateLimitHeaders::from_response(&resp);
+            self.rate_limiter.update(&rl_headers).await;
+
+            let status = resp.status();
+
+            if status == StatusCode::TOO_MANY_REQUESTS {
+                let body_text = resp.text().await.unwrap_or_default();
+                let retry_after: f64 = serde_json::from_str::<Value>(&body_text)
+                    .ok()
+                    .and_then(|v| v["retry_after"].as_f64())
+                    .unwrap_or(1.0);
+
+                if rl_headers.global {
+                    self.rate_limiter.set_global_retry_after(retry_after).await;
+                } else {
+                    warn!(
+                        bucket = %bucket_hint,
+                        retry_after_secs = retry_after,
+                        "429 on bucket — sleeping before retry"
+                    );
+                    tokio::time::sleep(std::time::Duration::from_secs_f64(retry_after))
+                        .await;
+                }
+
+                if attempt == 0 {
+                    // multipart::Form is consumed; cannot retry transparently
+                    return Err(OxidianError::RateLimited {
+                        retry_after_ms: (retry_after * 1000.0) as u64,
+                        bucket: Some(bucket_hint),
+                    });
+                }
+
+                return Err(OxidianError::RateLimited {
+                    retry_after_ms: (retry_after * 1000.0) as u64,
+                    bucket: Some(bucket_hint),
+                });
+            }
+
+            if !status.is_success() {
+                let body_text = resp.text().await.unwrap_or_default();
+                if let Ok(api_err) = serde_json::from_str::<DiscordApiError>(&body_text) {
+                    return Err(OxidianError::Api {
+                        code: api_err.code,
+                        message: api_err.message,
+                    });
+                }
+                return Err(HttpError::UnexpectedStatus {
+                    status: status.as_u16(),
+                    body: body_text,
+                }
+                .into());
+            }
+
+            let response_text = resp
+                .text()
+                .await
+                .map_err(|e| HttpError::Decode(e.to_string()))?;
+
+            let effective = if response_text.is_empty() {
+                "null"
+            } else {
+                &response_text
+            };
+
+            return serde_json::from_str::<T>(effective).map_err(|e| {
+                HttpError::Decode(format!("{e} — body: {response_text}")).into()
+            });
+        }
+        unreachable!()
     }
 }

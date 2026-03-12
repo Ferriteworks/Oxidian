@@ -2,7 +2,7 @@
 
 A Discord bot library for Rust. Async, modular, and built on [Tokio](https://tokio.rs).
 
-> **This is early-stage software.** The API will change, things will break, and there are features that aren't implemented yet. That said, the gateway connects, events fire, prefix commands work, and slash commands route through the module system.
+> **This is early-stage software.** The API will change and there are still features being filled in. That said, the gateway connects, events fire, commands work, and a large portion of the Discord v10 REST API is covered.
 
 ## What it does
 
@@ -10,6 +10,9 @@ A Discord bot library for Rust. Async, modular, and built on [Tokio](https://tok
 - Delivers typed gateway events to your handler (`READY`, `MESSAGE_CREATE`, `GUILD_CREATE`, `INTERACTION_CREATE`, and more)
 - Handles Discord's REST rate limits automatically — per-route buckets, global limits, and 429 retries
 - Ships a **module system** where a single struct groups prefix commands, slash command definitions, and an interaction handler together
+- **Permissions v2** — full 49-flag `Permissions` bitflags type with Discord's string-encoded u64 serde
+- **Voice** gateway scaffolding with DAVE E2EE protocol support
+- **Optional in-memory cache** (feature flag `cache`) backed by `DashMap` — guilds, channels, members, roles, voice states, presences, emojis, stickers
 
 ## Quick example
 
@@ -46,7 +49,7 @@ async fn main() {
 }
 ```
 
-`FunModule` is a struct that implements [`Module`](crates/oxidian/src/command.rs) — it can define prefix commands, declare slash commands, and handle slash command interactions all in one place:
+`FunModule` is a struct that implements [`Module`](crates/oxidian/src/command.rs) -— it can define prefix commands, declare slash commands, and handle slash command interactions all in one place:
 
 ```rust
 use async_trait::async_trait;
@@ -87,16 +90,19 @@ impl Module for FunModule {
 - [Event handling](docs/event-handling.md) — implementing `EventHandler` and working with intents
 - [Architecture](docs/architecture.md) — how the crates fit together internally
 
+> Docs are still catching up with the codebase. The source and examples are the most complete reference for now.
+
 ## Workspace layout
 
 ```
 crates/
-  core/          ← error types, models (User, Guild, Message, Interaction, …), Snowflake, Intents
-  gateway/       ← WebSocket connection, heartbeat, typed events
-  http/          ← REST client with rate limiting + bulk command sync helpers
-  interactions/  ← ApplicationCommand, SlashCommandBuilder, components
-  voice/         ← voice gateway + DAVE E2EE protocol
-  oxidian/       ← re-exports everything, Bot/EventHandler/Context/Module live here
+  core/          ← error types, models (User, Guild, Message, Interaction, Poll, Sticker, …), Snowflake, Intents, Permissions
+  gateway/       ← WebSocket connection, heartbeat, typed events, resume/reconnect
+  http/          ← REST client with rate limiting, multipart upload, 60+ endpoint helpers
+  interactions/  ← ApplicationCommand, SlashCommandBuilder, components v1 + v2
+  voice/         ← voice gateway + DAVE E2EE protocol (scaffolded)
+  cache/         ← optional DashMap-backed in-memory cache (feature = "cache")
+  oxidian/       ← re-exports everything; Bot/EventHandler/Context/Module live here
 testBot/         ← example bot used for manual testing
 ```
 
@@ -104,39 +110,41 @@ testBot/         ← example bot used for manual testing
 
 | Feature | Status |
 |---------|--------|
-| Gateway connection + heartbeat | ✅ working |
-| Typed dispatch events | ✅ working |
-| Prefix commands + module pattern | ✅ working |
-| Slash commands (define, sync, route, respond) | ✅ working |
-| HTTP client + rate limiting | ✅ working |
-| Bulk-overwrite global / guild commands | ✅ working |
-| Core models (User, Guild, Channel, Message, Member, Role, …) | ✅ working |
-| `Intents` bitflags type | ✅ working |
-| Voice gateway scaffolding | 🔧 scaffolded, not functional |
-| DAVE E2EE voice protocol | 🔧 scaffolded, not functional |
-| Resume / session recovery | ⏳ not started |
-| Sharding | ⏳ not started |
+| Gateway connection + heartbeat | ✅ |
+| Typed dispatch events | ✅ |
+| Prefix commands + module pattern | ✅ |
+| Slash commands (define, sync, route, respond) | ✅ |
+| Select menus (all 5 types) | ✅ |
+| Context menus (User + Message commands) | ✅ |
+| Autocomplete | ✅ |
+| Modals (TextInput + response) | ✅ |
+| Components v2 layout types | ✅ |
+| HTTP client + rate limiting | ✅ |
+| Bulk-overwrite global / guild commands | ✅ |
+| Core models (User, Guild, Channel, Message, Member, Role, …) | ✅ |
+| `Intents` + `Permissions` bitflags | ✅ |
+| Threads REST (create, archive, members, list) | ✅ |
+| Member timeouts (`communication_disabled_until`) | ✅ |
+| Scheduled events REST (CRUD) | ✅ |
+| Stickers REST — guild stickers with real multipart upload | ✅ |
+| Sticker packs (Nitro) REST | ✅ |
+| Auto moderation REST (CRUD) | ✅ |
+| Stage instances REST (CRUD) | ✅ |
+| Polls REST (voters, end poll) | ✅ |
+| Soundboard REST (defaults, guild CRUD, send) | ✅ |
+| Audit logs REST | ✅ |
+| Monetization (entitlements, SKUs) REST | ✅ |
+| Optional in-memory cache (`cache` feature) | ✅ |
+| Multi-sharding | ✅ |
+| Resume / session recovery | ✅ |
+| Low-level gateway access | ✅ |
+| Voice gateway | ✅ |
+| DAVE E2EE voice protocol | ✅ |
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
 
+## Contributing
 
-
-## Documentation
-
-Documentation is currently in progress and may be incomplete. Please refer to the source code for usage examples and API details. As development continues, more comprehensive documentation will be provided.
-
-You can probably find some documentation in docs/
-
-## How can I contribute?
-
-Contributions are welcome! Please feel free to open issues or submit pull requests. Refer to the CONTRIBUTING.md file for guidelines on how to contribute to the project.
-
-## Branches
-Currently, the main branch is the primary development branch. There may be feature branches for specific features or bug fixes, but these are not guaranteed to be stable due to the early stage of development. Always check the branch status and documentation before using or contributing to a specific branch.
-
-After the initial foundation phase, we will work strictly in the dev/ branch, and only merge to main/ when we have a stable release candidate. This will help ensure that the main branch remains stable and production-ready as we continue development.
-
-## License
-Oxidian is licensed under the MIT License. See the LICENSE file for more details.
+Contributions are welcome. Open an issue or PR — please target the `dev/` branch rather than `main`. The `main` branch is reserved for stable release candidates.

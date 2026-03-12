@@ -262,6 +262,61 @@ pub enum Route {
     },
     /// `GET /applications/{application.id}/skus`
     ListSkus { application_id: Snowflake },
+
+    // ── Stage Instances ───────────────────────────────────────────────────
+    /// `POST /stage-instances`
+    CreateStageInstance,
+    /// `GET /stage-instances/{channel.id}`
+    GetStageInstance { channel_id: Snowflake },
+    /// `PATCH /stage-instances/{channel.id}`
+    ModifyStageInstance { channel_id: Snowflake },
+    /// `DELETE /stage-instances/{channel.id}`
+    DeleteStageInstance { channel_id: Snowflake },
+
+    // ── Polls ─────────────────────────────────────────────────────────────
+    /// `GET /channels/{channel.id}/polls/{message.id}/answers/{answer.id}` — list voters for an answer.
+    GetPollAnswerVoters {
+        channel_id: Snowflake,
+        message_id: Snowflake,
+        answer_id: u32,
+    },
+    /// `POST /channels/{channel.id}/polls/{message.id}/expire` — immediately end a poll.
+    EndPoll {
+        channel_id: Snowflake,
+        message_id: Snowflake,
+    },
+
+    // ── Soundboard ────────────────────────────────────────────────────────
+    /// `GET /soundboard-default-sounds`
+    ListDefaultSoundboardSounds,
+    /// `GET /guilds/{guild.id}/soundboard-sounds`
+    ListGuildSoundboardSounds { guild_id: Snowflake },
+    /// `POST /guilds/{guild.id}/soundboard-sounds`
+    CreateGuildSoundboardSound { guild_id: Snowflake },
+    /// `PATCH /guilds/{guild.id}/soundboard-sounds/{sound.id}`
+    ModifyGuildSoundboardSound {
+        guild_id: Snowflake,
+        sound_id: Snowflake,
+    },
+    /// `DELETE /guilds/{guild.id}/soundboard-sounds/{sound.id}`
+    DeleteGuildSoundboardSound {
+        guild_id: Snowflake,
+        sound_id: Snowflake,
+    },
+    /// `POST /channels/{channel.id}/send-soundboard-sound`
+    SendSoundboardSound { channel_id: Snowflake },
+
+    // ── Audit Logs ────────────────────────────────────────────────────────
+    /// `GET /guilds/{guild.id}/audit-logs`
+    GetAuditLog { guild_id: Snowflake },
+
+    // ── Sticker Packs ─────────────────────────────────────────────────────
+    /// `GET /sticker-packs`
+    ListStickerPacks,
+    /// `GET /stickers/{sticker.id}` — get a Nitro sticker by ID.
+    GetSticker { sticker_id: Snowflake },
+    /// `GET /sticker-packs/{pack.id}`
+    GetStickerPack { pack_id: Snowflake },
 }
 
 impl Route {
@@ -286,7 +341,15 @@ impl Route {
             | Self::ListAutoModerationRules { .. }
             | Self::GetAutoModerationRule { .. }
             | Self::ListEntitlements { .. }
-            | Self::ListSkus { .. } => Method::Get,
+            | Self::ListSkus { .. }
+            | Self::GetStageInstance { .. }
+            | Self::GetPollAnswerVoters { .. }
+            | Self::ListDefaultSoundboardSounds
+            | Self::ListGuildSoundboardSounds { .. }
+            | Self::GetAuditLog { .. }
+            | Self::ListStickerPacks
+            | Self::GetSticker { .. }
+            | Self::GetStickerPack { .. } => Method::Get,
 
             Self::CreateMessage { .. }
             | Self::CreateGlobalCommand { .. }
@@ -297,7 +360,11 @@ impl Route {
             | Self::CreateScheduledEvent { .. }
             | Self::CreateGuildSticker { .. }
             | Self::CreateAutoModerationRule { .. }
-            | Self::CreateTestEntitlement { .. } => Method::Post,
+            | Self::CreateTestEntitlement { .. }
+            | Self::CreateStageInstance
+            | Self::EndPoll { .. }
+            | Self::CreateGuildSoundboardSound { .. }
+            | Self::SendSoundboardSound { .. } => Method::Post,
 
             Self::BulkOverwriteGlobalCommands { .. }
             | Self::BulkOverwriteGuildCommands { .. }
@@ -310,7 +377,9 @@ impl Route {
             | Self::ModifyGuildMember { .. }
             | Self::ModifyScheduledEvent { .. }
             | Self::ModifyGuildSticker { .. }
-            | Self::ModifyAutoModerationRule { .. } => Method::Patch,
+            | Self::ModifyAutoModerationRule { .. }
+            | Self::ModifyStageInstance { .. }
+            | Self::ModifyGuildSoundboardSound { .. } => Method::Patch,
 
             Self::DeleteMessage { .. }
             | Self::DeleteGlobalCommand { .. }
@@ -320,7 +389,9 @@ impl Route {
             | Self::DeleteScheduledEvent { .. }
             | Self::DeleteGuildSticker { .. }
             | Self::DeleteAutoModerationRule { .. }
-            | Self::DeleteTestEntitlement { .. } => Method::Delete,
+            | Self::DeleteTestEntitlement { .. }
+            | Self::DeleteStageInstance { .. }
+            | Self::DeleteGuildSoundboardSound { .. } => Method::Delete,
         }
     }
 
@@ -499,6 +570,63 @@ impl Route {
             Self::ListSkus { application_id } => {
                 format!("{base}/applications/{application_id}/skus")
             }
+
+            // ── Stage Instances ──────────────────────────────────────────
+            Self::CreateStageInstance => format!("{base}/stage-instances"),
+            Self::GetStageInstance { channel_id } => {
+                format!("{base}/stage-instances/{channel_id}")
+            }
+            Self::ModifyStageInstance { channel_id } => {
+                format!("{base}/stage-instances/{channel_id}")
+            }
+            Self::DeleteStageInstance { channel_id } => {
+                format!("{base}/stage-instances/{channel_id}")
+            }
+
+            // ── Polls ────────────────────────────────────────────────────
+            Self::GetPollAnswerVoters {
+                channel_id,
+                message_id,
+                answer_id,
+            } => format!(
+                "{base}/channels/{channel_id}/polls/{message_id}/answers/{answer_id}"
+            ),
+            Self::EndPoll {
+                channel_id,
+                message_id,
+            } => format!("{base}/channels/{channel_id}/polls/{message_id}/expire"),
+
+            // ── Soundboard ───────────────────────────────────────────────
+            Self::ListDefaultSoundboardSounds => {
+                format!("{base}/soundboard-default-sounds")
+            }
+            Self::ListGuildSoundboardSounds { guild_id } => {
+                format!("{base}/guilds/{guild_id}/soundboard-sounds")
+            }
+            Self::CreateGuildSoundboardSound { guild_id } => {
+                format!("{base}/guilds/{guild_id}/soundboard-sounds")
+            }
+            Self::ModifyGuildSoundboardSound { guild_id, sound_id } => {
+                format!("{base}/guilds/{guild_id}/soundboard-sounds/{sound_id}")
+            }
+            Self::DeleteGuildSoundboardSound { guild_id, sound_id } => {
+                format!("{base}/guilds/{guild_id}/soundboard-sounds/{sound_id}")
+            }
+            Self::SendSoundboardSound { channel_id } => {
+                format!("{base}/channels/{channel_id}/send-soundboard-sound")
+            }
+
+            // ── Audit Logs ───────────────────────────────────────────────
+            Self::GetAuditLog { guild_id } => {
+                format!("{base}/guilds/{guild_id}/audit-logs")
+            }
+
+            // ── Sticker Packs ────────────────────────────────────────────
+            Self::ListStickerPacks => format!("{base}/sticker-packs"),
+            Self::GetSticker { sticker_id } => format!("{base}/stickers/{sticker_id}"),
+            Self::GetStickerPack { pack_id } => {
+                format!("{base}/sticker-packs/{pack_id}")
+            }
         }
     }
 
@@ -603,6 +731,36 @@ impl Route {
             | Self::ListSkus { application_id } => {
                 format!("application:{application_id}:entitlements")
             }
+
+            // ── Stage Instances ───────────────────────────────────────────
+            Self::CreateStageInstance
+            | Self::GetStageInstance { .. }
+            | Self::ModifyStageInstance { .. }
+            | Self::DeleteStageInstance { .. } => "stage-instances".to_owned(),
+
+            // ── Polls ─────────────────────────────────────────────────────
+            Self::GetPollAnswerVoters { channel_id, .. }
+            | Self::EndPoll { channel_id, .. } => format!("channel:{channel_id}"),
+
+            // ── Soundboard ────────────────────────────────────────────────
+            Self::ListDefaultSoundboardSounds => "soundboard-defaults".to_owned(),
+            Self::ListGuildSoundboardSounds { guild_id }
+            | Self::CreateGuildSoundboardSound { guild_id }
+            | Self::ModifyGuildSoundboardSound { guild_id, .. }
+            | Self::DeleteGuildSoundboardSound { guild_id, .. } => {
+                format!("guild:{guild_id}:soundboard")
+            }
+            Self::SendSoundboardSound { channel_id } => {
+                format!("channel:{channel_id}")
+            }
+
+            // ── Audit Logs ────────────────────────────────────────────────
+            Self::GetAuditLog { guild_id } => format!("guild:{guild_id}:audit-log"),
+
+            // ── Sticker Packs ─────────────────────────────────────────────
+            Self::ListStickerPacks
+            | Self::GetSticker { .. }
+            | Self::GetStickerPack { .. } => "sticker-packs".to_owned(),
         }
     }
 }

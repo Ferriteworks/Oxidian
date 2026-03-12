@@ -33,7 +33,7 @@ thiserror        = "2"
 bitflags         = "2"
 futures-util     = "0.3"
 tokio-tungstenite = { version = "0.26", features = ["rustls-tls-native-roots"] }
-reqwest          = { version = "0.12", features = ["json"] }
+reqwest          = { version = "0.12", features = ["json", "multipart"] }
 rustls           = { version = "0.23", features = ["ring"] }
 tracing          = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
