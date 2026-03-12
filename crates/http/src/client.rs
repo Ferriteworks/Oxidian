@@ -563,11 +563,8 @@ impl HttpClient {
         user_id: oxidian_core::snowflake::Snowflake,
         body: Value,
     ) -> Result<Value, OxidianError> {
-        self.request(
-            Route::ModifyGuildMember { guild_id, user_id },
-            Some(body),
-        )
-        .await
+        self.request(Route::ModifyGuildMember { guild_id, user_id }, Some(body))
+            .await
     }
 
     // ── Scheduled Events ──────────────────────────────────────────────────
@@ -748,11 +745,8 @@ impl HttpClient {
         guild_id: oxidian_core::snowflake::Snowflake,
         rule_id: oxidian_core::snowflake::Snowflake,
     ) -> Result<(), OxidianError> {
-        self.request(
-            Route::DeleteAutoModerationRule { guild_id, rule_id },
-            None,
-        )
-        .await
+        self.request(Route::DeleteAutoModerationRule { guild_id, rule_id }, None)
+            .await
     }
 
     // ── Entitlements / Monetization ───────────────────────────────────────
@@ -772,11 +766,8 @@ impl HttpClient {
         application_id: oxidian_core::snowflake::Snowflake,
         body: Value,
     ) -> Result<Value, OxidianError> {
-        self.request(
-            Route::CreateTestEntitlement { application_id },
-            Some(body),
-        )
-        .await
+        self.request(Route::CreateTestEntitlement { application_id }, Some(body))
+            .await
     }
 
     /// Delete a test entitlement.
@@ -800,8 +791,7 @@ impl HttpClient {
         &self,
         application_id: oxidian_core::snowflake::Snowflake,
     ) -> Result<Value, OxidianError> {
-        self.request(Route::ListSkus { application_id }, None)
-            .await
+        self.request(Route::ListSkus { application_id }, None).await
     }
 
     fn build_request(

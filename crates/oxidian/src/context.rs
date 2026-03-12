@@ -47,9 +47,7 @@ impl GatewayHandle {
     /// Create a new `GatewayHandle` from a broadcast sender.
     ///
     /// This is useful when building a custom event loop without `Bot`.
-    pub fn new(
-        tx: Arc<tokio::sync::broadcast::Sender<serde_json::Value>>,
-    ) -> Self {
+    pub fn new(tx: Arc<tokio::sync::broadcast::Sender<serde_json::Value>>) -> Self {
         Self { tx }
     }
 
@@ -114,7 +112,11 @@ impl Context {
     ///
     /// This is useful when building a custom event loop without `Bot`.
     #[cfg(feature = "cache")]
-    pub fn new(http: Arc<HttpClient>, gateway: GatewayHandle, cache: Arc<Cache>) -> Self {
+    pub fn new(
+        http: Arc<HttpClient>,
+        gateway: GatewayHandle,
+        cache: Arc<Cache>,
+    ) -> Self {
         Self {
             http,
             gateway,

@@ -31,17 +31,20 @@
 //! ```
 
 use async_trait::async_trait;
-use oxidian::{Bot, Context, EventHandler, Intents, Snowflake};
 use oxidian::core::models::interaction::{Interaction, InteractionResponse};
 use oxidian::gateway::events::ReadyData;
 use oxidian::interactions::command::SlashCommandBuilder;
+use oxidian::{Bot, Context, EventHandler, Intents, Snowflake};
 
 struct Handler;
 
 #[async_trait]
 impl EventHandler for Handler {
     async fn ready(&self, _ctx: Context, ready: ReadyData) {
-        println!("Logged in as {}#{}", ready.user.username, ready.user.discriminator);
+        println!(
+            "Logged in as {}#{}",
+            ready.user.username, ready.user.discriminator
+        );
     }
 
     async fn interaction(&self, ctx: Context, interaction: Interaction) {
@@ -95,17 +98,16 @@ async fn main() {
         .expect("failed to register /ping");
 
     // Register /hello with a required string option.
-    use oxidian::interactions::command::{CommandOptionBuilder, CommandOption};
     use oxidian::core::models::interaction::CommandOptionType;
-    let hello_opt: CommandOption = CommandOptionBuilder::new(
-        CommandOptionType::String,
-        "name",
-        "Who to greet",
-    )
-    .required()
-    .build();
+    use oxidian::interactions::command::{CommandOption, CommandOptionBuilder};
+    let hello_opt: CommandOption =
+        CommandOptionBuilder::new(CommandOptionType::String, "name", "Who to greet")
+            .required()
+            .build();
     let hello_cmd = serde_json::to_value(
-        SlashCommandBuilder::new("hello", "Greet someone").option(hello_opt).build(),
+        SlashCommandBuilder::new("hello", "Greet someone")
+            .option(hello_opt)
+            .build(),
     )
     .unwrap();
     http.create_global_command(Snowflake::new(app_id), hello_cmd)

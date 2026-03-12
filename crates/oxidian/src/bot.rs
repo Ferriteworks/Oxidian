@@ -86,12 +86,16 @@ impl Bot {
             ShardCount::Auto => {
                 let resp = http.get_gateway_bot().await?;
                 let recommended = resp["shards"].as_u64().unwrap_or(1) as u32;
-                info!(recommended, "auto-shard: Discord recommends {recommended} shard(s)");
+                info!(
+                    recommended,
+                    "auto-shard: Discord recommends {recommended} shard(s)"
+                );
                 recommended.max(1)
             }
         };
 
-        let (event_tx, mut event_rx) = mpsc::channel::<DispatchEvent>(256 * num_shards as usize);
+        let (event_tx, mut event_rx) =
+            mpsc::channel::<DispatchEvent>(256 * num_shards as usize);
 
         // Spawn all shards. We share a single outbound broadcast per shard
         // (voice state updates etc. are shard-specific) but a single HTTP

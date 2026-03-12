@@ -288,11 +288,12 @@ pub async fn connect(
     // If the loop exited due to a receive error (network drop, connection
     // reset, etc.) return the session state so the shard can resume.
     if broken_by_error {
-        let state = current_session.map(|(session_id, resume_gateway_url)| SessionState {
-            session_id,
-            resume_gateway_url,
-            last_seq: *seq_tx.borrow(),
-        });
+        let state =
+            current_session.map(|(session_id, resume_gateway_url)| SessionState {
+                session_id,
+                resume_gateway_url,
+                last_seq: *seq_tx.borrow(),
+            });
         return Ok(state);
     }
 

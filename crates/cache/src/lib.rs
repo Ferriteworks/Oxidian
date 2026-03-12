@@ -49,13 +49,8 @@
 use dashmap::DashMap;
 use oxidian_core::{
     models::{
-        channel::Channel,
-        emoji::Emoji,
-        guild::Guild,
-        member::Member,
-        role::Role,
-        sticker::Sticker,
-        user::User,
+        channel::Channel, emoji::Emoji, guild::Guild, member::Member, role::Role,
+        sticker::Sticker, user::User,
     },
     snowflake::Snowflake,
 };
@@ -158,12 +153,16 @@ impl Cache {
 
     /// Look up a guild member by guild + user ID.
     pub fn member(&self, guild_id: Snowflake, user_id: Snowflake) -> Option<Member> {
-        self.members.get(&(guild_id, user_id)).map(|r| r.value().clone())
+        self.members
+            .get(&(guild_id, user_id))
+            .map(|r| r.value().clone())
     }
 
     /// Look up a role by guild + role ID.
     pub fn role(&self, guild_id: Snowflake, role_id: Snowflake) -> Option<Role> {
-        self.roles.get(&(guild_id, role_id)).map(|r| r.value().clone())
+        self.roles
+            .get(&(guild_id, role_id))
+            .map(|r| r.value().clone())
     }
 
     /// All roles for a guild.
@@ -181,7 +180,9 @@ impl Cache {
         guild_id: Snowflake,
         user_id: Snowflake,
     ) -> Option<VoiceStateUpdateData> {
-        self.voice_states.get(&(guild_id, user_id)).map(|r| r.value().clone())
+        self.voice_states
+            .get(&(guild_id, user_id))
+            .map(|r| r.value().clone())
     }
 
     /// Look up a presence by guild + user ID.
@@ -190,7 +191,9 @@ impl Cache {
         guild_id: Snowflake,
         user_id: Snowflake,
     ) -> Option<PresenceUpdateData> {
-        self.presences.get(&(guild_id, user_id)).map(|r| r.value().clone())
+        self.presences
+            .get(&(guild_id, user_id))
+            .map(|r| r.value().clone())
     }
 
     /// All emojis for a guild.
@@ -259,9 +262,11 @@ impl Cache {
             }
 
             // ── Roles ────────────────────────────────────────────────────
-            DispatchEvent::GuildRoleCreate(data) | DispatchEvent::GuildRoleUpdate(data) => {
+            DispatchEvent::GuildRoleCreate(data)
+            | DispatchEvent::GuildRoleUpdate(data) => {
                 trace!(guild_id = %data.guild_id.get(), role_id = %data.role.id.get(), "cache: upsert role");
-                self.roles.insert((data.guild_id, data.role.id), data.role.clone());
+                self.roles
+                    .insert((data.guild_id, data.role.id), data.role.clone());
             }
             DispatchEvent::GuildRoleDelete(data) => {
                 trace!(guild_id = %data.guild_id.get(), role_id = %data.role_id.get(), "cache: remove role");
@@ -273,14 +278,17 @@ impl Cache {
                 if let Some(ref user) = data.member.user {
                     trace!(guild_id = %data.guild_id.get(), user_id = %user.id.get(), "cache: add member");
                     self.users.insert(user.id, user.clone());
-                    self.members.insert((data.guild_id, user.id), data.member.clone());
+                    self.members
+                        .insert((data.guild_id, user.id), data.member.clone());
                 }
             }
             DispatchEvent::GuildMemberUpdate(data) => {
                 trace!(guild_id = %data.guild_id.get(), user_id = %data.user.id.get(), "cache: update member");
                 self.users.insert(data.user.id, data.user.clone());
                 // Patch the existing member entry if it exists.
-                if let Some(mut entry) = self.members.get_mut(&(data.guild_id, data.user.id)) {
+                if let Some(mut entry) =
+                    self.members.get_mut(&(data.guild_id, data.user.id))
+                {
                     let m = entry.value_mut();
                     m.nick = data.nick.clone();
                     m.avatar = data.avatar.clone();
@@ -307,7 +315,8 @@ impl Cache {
                 for member in &data.members {
                     if let Some(ref user) = member.user {
                         self.users.insert(user.id, user.clone());
-                        self.members.insert((data.guild_id, user.id), member.clone());
+                        self.members
+                            .insert((data.guild_id, user.id), member.clone());
                     }
                 }
             }
@@ -317,7 +326,8 @@ impl Cache {
                 if let Some(guild_id) = state.guild_id {
                     if state.channel_id.is_some() {
                         trace!(guild_id = %guild_id.get(), user_id = %state.user_id.get(), "cache: upsert voice state");
-                        self.voice_states.insert((guild_id, state.user_id), state.clone());
+                        self.voice_states
+                            .insert((guild_id, state.user_id), state.clone());
                     } else {
                         // User left voice — remove.
                         trace!(guild_id = %guild_id.get(), user_id = %state.user_id.get(), "cache: remove voice state");
@@ -329,7 +339,8 @@ impl Cache {
             // ── Presences ────────────────────────────────────────────────
             DispatchEvent::PresenceUpdate(data) => {
                 trace!(guild_id = %data.guild_id.get(), user_id = %data.user.id.get(), "cache: upsert presence");
-                self.presences.insert((data.guild_id, data.user.id), data.clone());
+                self.presences
+                    .insert((data.guild_id, data.user.id), data.clone());
             }
 
             // ── Emojis ───────────────────────────────────────────────────
@@ -349,7 +360,8 @@ impl Cache {
                 trace!(guild_id = %data.guild_id.get(), count = data.stickers.len(), "cache: replace stickers");
                 self.stickers.retain(|k, _| k.0 != data.guild_id);
                 for sticker in &data.stickers {
-                    self.stickers.insert((data.guild_id, sticker.id), sticker.clone());
+                    self.stickers
+                        .insert((data.guild_id, sticker.id), sticker.clone());
                 }
             }
 

@@ -518,13 +518,22 @@ pub struct SelectDefaultValue {
 
 impl SelectDefaultValue {
     pub fn user(id: Snowflake) -> Self {
-        Self { id, kind: "user".into() }
+        Self {
+            id,
+            kind: "user".into(),
+        }
     }
     pub fn role(id: Snowflake) -> Self {
-        Self { id, kind: "role".into() }
+        Self {
+            id,
+            kind: "role".into(),
+        }
     }
     pub fn channel(id: Snowflake) -> Self {
-        Self { id, kind: "channel".into() }
+        Self {
+            id,
+            kind: "channel".into(),
+        }
     }
 }
 

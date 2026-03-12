@@ -68,7 +68,7 @@ pub mod context;
 pub mod handler;
 
 pub use bot::{dispatch, Bot, BotBuilder, ShardCount};
-pub use command::{Command, Module, CommandRegistry};
+pub use command::{Command, CommandRegistry, Module};
 pub use context::{Context, GatewayHandle};
 pub use handler::EventHandler;
 

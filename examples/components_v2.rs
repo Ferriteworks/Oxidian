@@ -36,7 +36,8 @@ use oxidian::core::models::interaction::{Interaction, InteractionResponse};
 use oxidian::gateway::events::ReadyData;
 use oxidian::interactions::command::SlashCommandBuilder;
 use oxidian::interactions::components::{
-    Container, MediaGallery, MediaGalleryItem, Section, Separator, TextDisplay, Thumbnail,
+    Container, MediaGallery, MediaGalleryItem, Section, Separator, TextDisplay,
+    Thumbnail,
 };
 use oxidian::{Bot, Context, CreateMessage, EventHandler, Intents};
 
@@ -47,9 +48,7 @@ impl EventHandler for Handler {
     async fn ready(&self, ctx: Context, ready: ReadyData) {
         println!("Logged in as {}", ready.user.username);
 
-        let cmds = vec![
-            SlashCommandBuilder::new("demo", "Components V2 demo").build(),
-        ];
+        let cmds = vec![SlashCommandBuilder::new("demo", "Components V2 demo").build()];
         ctx.http
             .bulk_overwrite_global_commands(ready.application.id, &cmds)
             .await
@@ -65,7 +64,8 @@ impl EventHandler for Handler {
                     .await
                     .ok();
 
-                let header = TextDisplay::new("# Components V2 Demo\nBuilt with Oxidian.");
+                let header =
+                    TextDisplay::new("# Components V2 Demo\nBuilt with Oxidian.");
 
                 let section = Section::new()
                     .text(TextDisplay::new("**Oxidian** — a Rust Discord library."))

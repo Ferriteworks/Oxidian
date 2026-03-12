@@ -125,4 +125,3 @@ impl serde::Serialize for Permissions {
         serializer.serialize_str(&self.to_string_value())
     }
 }
-
