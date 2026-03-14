@@ -31,7 +31,19 @@
 //! placeholder key sets per SSRC.  Full MLS group management and AEAD key
 //! derivation will be added in a future release.
 
-use super::{keys::SenderKeySet, protocol::DaveState};
+use super::{
+    keys::SenderKeySet,
+    protocol::{DaveEvent, DaveState},
+};
+
+/// Read-only snapshot of a [`DaveSession`].
+#[derive(Debug, Clone)]
+pub struct DaveSessionSnapshot {
+    /// Protocol negotiation state machine.
+    pub state: DaveState,
+    /// Per-sender key sets, indexed by SSRC.
+    pub sender_keys: Vec<SenderKeySet>,
+}
 
 /// Manages DAVE E2EE state for a single voice channel session.
 #[derive(Debug)]
@@ -71,6 +83,43 @@ impl DaveSession {
     /// Remove a sender by SSRC (e.g. when they leave the voice channel).
     pub fn remove_sender(&mut self, ssrc: u32) {
         self.sender_keys.retain(|k| k.ssrc != ssrc);
+    }
+
+    /// Apply one raw voice gateway payload into the DAVE state machine.
+    pub fn apply_gateway_payload(
+        &mut self,
+        op: u64,
+        d: &serde_json::Value,
+    ) -> Option<DaveEvent> {
+        self.state.apply_gateway_payload(op, d)
+    }
+
+    /// Return an owned snapshot of the current DAVE session.
+    pub fn snapshot(&self) -> DaveSessionSnapshot {
+        DaveSessionSnapshot {
+            state: self.state.clone(),
+            sender_keys: self.sender_keys.clone(),
+        }
+    }
+
+    /// Whether we have received at least one MLS commit/welcome payload.
+    pub fn has_commit_welcome(&self) -> bool {
+        self.state.commit_welcome.is_some()
+    }
+
+    /// Return the latest commit/welcome payload, if available.
+    pub fn latest_commit_welcome(&self) -> Option<&[u8]> {
+        self.state.commit_welcome.as_deref()
+    }
+
+    /// Return the number of cached key package payloads.
+    pub fn key_package_count(&self) -> usize {
+        self.state.key_packages.len()
+    }
+
+    /// Return the number of cached proposal payloads.
+    pub fn proposal_count(&self) -> usize {
+        self.state.proposals.len()
     }
 }
 

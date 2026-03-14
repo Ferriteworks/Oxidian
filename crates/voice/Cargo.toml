@@ -21,3 +21,4 @@ futures-util      = { workspace = true }
 tracing           = { workspace = true }
 aes-gcm           = "0.10"
 audiopus          = "0.3.0-rc.0"
+base64            = "0.22"

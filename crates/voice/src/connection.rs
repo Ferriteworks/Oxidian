@@ -34,7 +34,7 @@ use aes_gcm::{
 };
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::UdpSocket;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, RwLock};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{debug, info, warn};
 
@@ -43,7 +43,11 @@ use oxidian_core::{
     snowflake::Snowflake,
 };
 
-use crate::dave::protocol::DaveState;
+use crate::dave::{
+    keys::SenderKeySet,
+    protocol::{transition_ready_payload, DaveEvent, DavePhase},
+    session::{DaveSession, DaveSessionSnapshot},
+};
 
 type WsSink = futures_util::stream::SplitSink<
     tokio_tungstenite::WebSocketStream<
@@ -82,6 +86,7 @@ pub struct VoiceConnection {
     timestamp: Arc<AtomicU32>,
     /// Sending on this channel stops the voice heartbeat task.
     write_tx: mpsc::Sender<Message>,
+    dave_session: Arc<RwLock<DaveSession>>,
     _heartbeat_stop: mpsc::Sender<()>,
 }
 
@@ -202,11 +207,14 @@ impl VoiceConnection {
 
         info!("voice session established");
 
+        let dave_session = Arc::new(RwLock::new(DaveSession::new()));
+
         // Spawn background event loop (handles HeartbeatAck, seq_ack, DAVE transitions).
         tokio::spawn(voice_event_loop(
             stream,
             write_tx.clone(),
             Arc::clone(&seq_ack),
+            Arc::clone(&dave_session),
         ));
 
         Ok(Self {
@@ -218,8 +226,39 @@ impl VoiceConnection {
             sequence: Arc::new(AtomicU32::new(0)),
             timestamp: Arc::new(AtomicU32::new(0)),
             write_tx,
+            dave_session,
             _heartbeat_stop: hb_stop,
         })
+    }
+
+    /// Returns `true` when DAVE has reached an active transition epoch.
+    pub async fn is_dave_active(&self) -> bool {
+        self.dave_session.read().await.is_active()
+    }
+
+    /// Returns the current DAVE phase.
+    pub async fn dave_phase(&self) -> DavePhase {
+        self.dave_session.read().await.state.phase
+    }
+
+    /// Returns a read-only snapshot of all tracked DAVE state.
+    pub async fn dave_snapshot(&self) -> DaveSessionSnapshot {
+        self.dave_session.read().await.snapshot()
+    }
+
+    /// Register a participant SSRC in the DAVE sender-key table.
+    pub async fn register_dave_sender(&self, ssrc: u32) {
+        self.dave_session.write().await.register_sender(ssrc);
+    }
+
+    /// Remove a participant SSRC from the DAVE sender-key table.
+    pub async fn remove_dave_sender(&self, ssrc: u32) {
+        self.dave_session.write().await.remove_sender(ssrc);
+    }
+
+    /// Return a copy of the tracked sender key set for an SSRC, if present.
+    pub async fn dave_sender_key(&self, ssrc: u32) -> Option<SenderKeySet> {
+        self.dave_session.read().await.get_sender_key(ssrc).cloned()
     }
 
     /// Set the speaking state (must be sent before transmitting audio).
@@ -481,9 +520,8 @@ async fn voice_event_loop(
     mut stream: WsStream,
     write_tx: mpsc::Sender<Message>,
     seq_ack: Arc<AtomicI64>,
+    dave_session: Arc<RwLock<DaveSession>>,
 ) {
-    let mut dave = DaveState::new();
-
     while let Some(msg) = stream.next().await {
         let text = match msg {
             Ok(Message::Text(t)) => t.to_string(),
@@ -517,69 +555,68 @@ async fn voice_event_loop(
             Some(13) => debug!("voice client disconnect"),
 
             // ── DAVE protocol handling ────────────────────────────────
+            Some(op) if (20..=28).contains(&op) => {
+                let d = payload.get("d").unwrap_or(&serde_json::Value::Null);
+                let event = {
+                    let mut session = dave_session.write().await;
+                    session.apply_gateway_payload(op, d)
+                };
 
-            // Op 20: DAVE Prepare Transition — acknowledge with op 25.
-            Some(20) => {
-                let transition_id = payload["d"]["transition_id"].as_u64().unwrap_or(0);
-                let protocol_version =
-                    payload["d"]["protocol_version"].as_u64().unwrap_or(1);
-                info!(transition_id, protocol_version, "DAVE prepare transition");
+                match event {
+                    Some(DaveEvent::PrepareTransition {
+                        transition_id,
+                        protocol_version,
+                    }) => {
+                        info!(
+                            transition_id,
+                            protocol_version, "DAVE prepare transition"
+                        );
 
-                dave.prepare_transition(transition_id, protocol_version);
-
-                let ready = serde_json::json!({
-                    "op": 25u8,
-                    "d": {
-                        "transition_id": transition_id,
+                        let ready = transition_ready_payload(transition_id);
+                        if let Ok(text) = serde_json::to_string(&ready) {
+                            let _ = write_tx.send(Message::Text(text.into())).await;
+                        }
+                        debug!(transition_id, "sent DAVE transition ready (op 25)");
                     }
-                });
-                if let Ok(text) = serde_json::to_string(&ready) {
-                    let _ = write_tx.send(Message::Text(text.into())).await;
+                    Some(DaveEvent::MlsExternalSender { ref bytes }) => {
+                        debug!(
+                            size = bytes.len(),
+                            "DAVE MLS external sender received (op 21)"
+                        );
+                    }
+                    Some(DaveEvent::MlsKeyPackage { ref bytes }) => {
+                        debug!(
+                            size = bytes.len(),
+                            "DAVE MLS key package received (op 22)"
+                        );
+                    }
+                    Some(DaveEvent::MlsProposals { ref bytes }) => {
+                        debug!(
+                            size = bytes.len(),
+                            "DAVE MLS proposals received (op 23)"
+                        );
+                    }
+                    Some(DaveEvent::MlsCommitWelcome { ref bytes }) => {
+                        debug!(
+                            size = bytes.len(),
+                            "DAVE MLS commit/welcome received (op 24)"
+                        );
+                    }
+                    Some(DaveEvent::ExecuteTransition { transition_id }) => {
+                        let active = {
+                            let session = dave_session.read().await;
+                            session.is_active()
+                        };
+                        info!(
+                            transition_id,
+                            active,
+                            "DAVE execute transition — new epoch active (op 28)"
+                        );
+                    }
+                    None => {
+                        debug!(op, "ignored malformed DAVE payload");
+                    }
                 }
-                debug!(transition_id, "sent DAVE transition ready (op 25)");
-            }
-
-            // Op 21: DAVE MLS External Sender — store the external sender key.
-            Some(21) => {
-                if let Some(data) = payload["d"].as_str() {
-                    dave.set_external_sender(data.as_bytes().to_vec());
-                }
-                debug!("DAVE MLS external sender received (op 21)");
-            }
-
-            // Op 22: DAVE MLS Key Package.
-            Some(22) => {
-                if let Some(data) = payload["d"].as_str() {
-                    dave.add_key_package(data.as_bytes().to_vec());
-                }
-                debug!("DAVE MLS key package received (op 22)");
-            }
-
-            // Op 23: DAVE MLS Proposals.
-            Some(23) => {
-                if let Some(data) = payload["d"].as_str() {
-                    dave.add_proposals(data.as_bytes().to_vec());
-                }
-                debug!("DAVE MLS proposals received (op 23)");
-            }
-
-            // Op 24: DAVE MLS Commit + Welcome.
-            Some(24) => {
-                if let Some(data) = payload["d"].as_str() {
-                    dave.set_commit_welcome(data.as_bytes().to_vec());
-                }
-                debug!("DAVE MLS commit/welcome received (op 24)");
-            }
-
-            // Op 28: DAVE Execute Transition — new epoch is now active.
-            Some(28) => {
-                let transition_id = payload["d"]["transition_id"].as_u64().unwrap_or(0);
-                dave.execute_transition(transition_id);
-                info!(
-                    transition_id,
-                    active = dave.is_active(),
-                    "DAVE execute transition — new epoch active (op 28)"
-                );
             }
 
             Some(op) => debug!(op, "unhandled voice opcode"),

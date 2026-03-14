@@ -48,4 +48,5 @@ pub mod dave;
 pub mod opus;
 
 pub use connection::VoiceConnection;
+pub use dave::{DaveEvent, DavePhase, DaveSession, DaveSessionSnapshot, DaveState};
 pub use opus::{OpusDecoder, OpusEncoder};

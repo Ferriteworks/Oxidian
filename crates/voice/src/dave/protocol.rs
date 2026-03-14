@@ -22,18 +22,46 @@
 
 //! DAVE protocol state machine.
 //!
-//! Handles the MLS-based key exchange lifecycle that precedes E2EE audio in
-//! DAVE-enabled voice channels.  Discord drives the protocol via voice
-//! gateway opcodes 20–28.
-//!
-//! ## Lifecycle
-//!
-//! 1. **Prepare Transition** (op 20) — Discord signals that a new encryption
-//!    epoch is being negotiated.  The client acknowledges with op 25.
-//! 2. **MLS Proposals / Commits** (ops 21–24) — Discord distributes MLS key
-//!    material.  Currently logged; full MLS group ratchet is a TODO.
-//! 3. **Execute Transition** (op 28) — Discord activates the new epoch.
-//!    All subsequent audio must use the new key material.
+//! Handles the MLS key exchange lifecycle that precedes E2EE media in
+//! DAVE-enabled voice channels. Discord drives this over voice gateway opcodes
+//! `20..=28`.
+
+use base64::{engine::general_purpose, Engine as _};
+
+/// DAVE gateway opcode: prepare transition.
+pub const OP_DAVE_PREPARE_TRANSITION: u64 = 20;
+/// DAVE gateway opcode: MLS external sender.
+pub const OP_DAVE_MLS_EXTERNAL_SENDER: u64 = 21;
+/// DAVE gateway opcode: MLS key package.
+pub const OP_DAVE_MLS_KEY_PACKAGE: u64 = 22;
+/// DAVE gateway opcode: MLS proposals.
+pub const OP_DAVE_MLS_PROPOSALS: u64 = 23;
+/// DAVE gateway opcode: MLS commit + welcome.
+pub const OP_DAVE_MLS_COMMIT_WELCOME: u64 = 24;
+/// DAVE gateway opcode: transition ready (client -> server).
+pub const OP_DAVE_TRANSITION_READY: u64 = 25;
+/// DAVE gateway opcode: execute transition.
+pub const OP_DAVE_EXECUTE_TRANSITION: u64 = 28;
+
+/// A parsed DAVE event emitted while processing voice gateway payloads.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DaveEvent {
+    /// Server began a new DAVE epoch transition.
+    PrepareTransition {
+        transition_id: u64,
+        protocol_version: u64,
+    },
+    /// Server provided the MLS external sender payload.
+    MlsExternalSender { bytes: Vec<u8> },
+    /// Server provided an MLS key package payload.
+    MlsKeyPackage { bytes: Vec<u8> },
+    /// Server provided MLS proposals payload.
+    MlsProposals { bytes: Vec<u8> },
+    /// Server provided MLS commit/welcome payload.
+    MlsCommitWelcome { bytes: Vec<u8> },
+    /// Server activated a transition/epoch.
+    ExecuteTransition { transition_id: u64 },
+}
 
 /// The current phase of a DAVE protocol negotiation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -58,7 +86,7 @@ pub enum DavePhase {
 }
 
 /// Tracks DAVE protocol state for a single voice connection.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DaveState {
     /// Current protocol phase.
     pub phase: DavePhase,
@@ -144,10 +172,107 @@ impl DaveState {
     pub fn set_commit_welcome(&mut self, data: Vec<u8>) {
         self.commit_welcome = Some(data);
     }
+
+    /// Apply a raw DAVE gateway payload (`op`, `d`) and update local state.
+    ///
+    /// Returns a typed [`DaveEvent`] when the opcode is DAVE-related and valid.
+    pub fn apply_gateway_payload(
+        &mut self,
+        op: u64,
+        d: &serde_json::Value,
+    ) -> Option<DaveEvent> {
+        match op {
+            OP_DAVE_PREPARE_TRANSITION => {
+                let transition_id = d.get("transition_id")?.as_u64()?;
+                let protocol_version = d
+                    .get("protocol_version")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(1);
+                self.prepare_transition(transition_id, protocol_version);
+                Some(DaveEvent::PrepareTransition {
+                    transition_id,
+                    protocol_version,
+                })
+            }
+            OP_DAVE_MLS_EXTERNAL_SENDER => {
+                let bytes = decode_payload_bytes(d)?;
+                self.set_external_sender(bytes.clone());
+                Some(DaveEvent::MlsExternalSender { bytes })
+            }
+            OP_DAVE_MLS_KEY_PACKAGE => {
+                let bytes = decode_payload_bytes(d)?;
+                self.add_key_package(bytes.clone());
+                Some(DaveEvent::MlsKeyPackage { bytes })
+            }
+            OP_DAVE_MLS_PROPOSALS => {
+                let bytes = decode_payload_bytes(d)?;
+                self.add_proposals(bytes.clone());
+                Some(DaveEvent::MlsProposals { bytes })
+            }
+            OP_DAVE_MLS_COMMIT_WELCOME => {
+                let bytes = decode_payload_bytes(d)?;
+                self.set_commit_welcome(bytes.clone());
+                Some(DaveEvent::MlsCommitWelcome { bytes })
+            }
+            OP_DAVE_EXECUTE_TRANSITION => {
+                let transition_id = d.get("transition_id")?.as_u64()?;
+                self.execute_transition(transition_id);
+                Some(DaveEvent::ExecuteTransition { transition_id })
+            }
+            _ => None,
+        }
+    }
 }
 
 impl Default for DaveState {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Build the op 25 payload acknowledging a DAVE transition.
+pub fn transition_ready_payload(transition_id: u64) -> serde_json::Value {
+    serde_json::json!({
+        "op": OP_DAVE_TRANSITION_READY,
+        "d": {
+            "transition_id": transition_id,
+        }
+    })
+}
+
+/// Decode DAVE byte payloads from voice gateway `d` fields.
+///
+/// Discord can encode these as:
+/// - a raw byte array (`[1,2,3,...]`)
+/// - a string (base64/base64url; UTF-8 fallback)
+/// - an object wrapper containing one of `data`, `bytes`, or `payload`
+pub fn decode_payload_bytes(value: &serde_json::Value) -> Option<Vec<u8>> {
+    match value {
+        serde_json::Value::Array(arr) => {
+            let mut out = Vec::with_capacity(arr.len());
+            for v in arr {
+                out.push(v.as_u64()? as u8);
+            }
+            Some(out)
+        }
+        serde_json::Value::String(s) => {
+            if let Ok(bytes) = general_purpose::STANDARD.decode(s.as_bytes()) {
+                return Some(bytes);
+            }
+            if let Ok(bytes) = general_purpose::URL_SAFE.decode(s.as_bytes()) {
+                return Some(bytes);
+            }
+            if let Ok(bytes) = general_purpose::URL_SAFE_NO_PAD.decode(s.as_bytes()) {
+                return Some(bytes);
+            }
+            // If it's not valid base64/base64url, keep literal UTF-8 bytes.
+            Some(s.as_bytes().to_vec())
+        }
+        serde_json::Value::Object(map) => decode_payload_bytes(
+            map.get("data")
+                .or_else(|| map.get("bytes"))
+                .or_else(|| map.get("payload"))?,
+        ),
+        _ => None,
     }
 }

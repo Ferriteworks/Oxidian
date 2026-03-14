@@ -23,3 +23,6 @@
 pub mod keys;
 pub mod protocol;
 pub mod session;
+
+pub use protocol::{DaveEvent, DavePhase, DaveState};
+pub use session::{DaveSession, DaveSessionSnapshot};
