@@ -26,7 +26,7 @@ use crate::snowflake::Snowflake;
 
 use super::user::User;
 
-/// A Discord emoji — either a custom guild emoji or a standard Unicode emoji.
+/// A Discord emoji: either a custom guild emoji or a standard Unicode emoji.
 ///
 /// When used in reaction or activity payloads, `id` is `None` for standard
 /// Unicode emoji and `name` holds the Unicode character.

@@ -20,7 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//! Discord message components (v1 — buttons, select menus, text inputs).
+//! Discord message components (v1: buttons, select menus, text inputs).
 //!
 //! Wrap components inside an [`ActionRow`] before including them in a message.
 
@@ -537,7 +537,7 @@ impl SelectDefaultValue {
     }
 }
 
-/// A user select menu — Discord auto-populates it with guild members.
+/// A user select menu: Discord auto-populates it with guild members.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserSelect {
     /// Always [`ComponentType::UserSelect`].
@@ -591,7 +591,7 @@ impl UserSelect {
     }
 }
 
-/// A role select menu — Discord auto-populates it with guild roles.
+/// A role select menu: Discord auto-populates it with guild roles.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoleSelect {
     /// Always [`ComponentType::RoleSelect`].
@@ -645,7 +645,7 @@ impl RoleSelect {
     }
 }
 
-/// A mentionable select menu — shows both users and roles.
+/// A mentionable select menu: shows both users and roles.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MentionableSelect {
     /// Always [`ComponentType::MentionableSelect`].
@@ -699,7 +699,7 @@ impl MentionableSelect {
     }
 }
 
-/// A channel select menu — Discord auto-populates it with guild channels.
+/// A channel select menu: Discord auto-populates it with guild channels.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChannelSelect {
     /// Always [`ComponentType::ChannelSelect`].

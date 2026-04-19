@@ -38,7 +38,7 @@ pub type BoxFuture = Pin<Box<dyn Future<Output = Result<()>> + Send>>;
 pub type CommandFn =
     Arc<dyn Fn(Context, Message, Vec<String>) -> BoxFuture + Send + Sync>;
 
-/// A self-contained command definition — a name paired with its handler.
+/// A self-contained command definition: a name paired with its handler.
 ///
 /// Create one with [`Command::new`] and register it on the bot with
 /// [`BotBuilder::register_module`] or inside a [`Module`] implementation.
@@ -59,7 +59,7 @@ pub struct Command {
 impl Command {
     /// Create a new `Command` with the given name and async handler function.
     ///
-    /// `name` should not include the prefix character — just the bare word
+    /// `name` should not include the prefix character: just the bare word
     /// (e.g. `"ping"`, not `"!ping"`).
     pub fn new<F, Fut>(name: impl Into<String>, f: F) -> Self
     where
@@ -77,7 +77,7 @@ impl Command {
 }
 
 /// A collection of related commands and slash commands grouped under a single
-/// struct — the Rust equivalent of a Python discord.py Cog.
+/// struct: the Rust equivalent of a Python discord.py Cog.
 ///
 /// Register a module with [`BotBuilder::module`]. The bot will:
 /// - Add all prefix commands from [`commands`](Self::commands) to the registry.

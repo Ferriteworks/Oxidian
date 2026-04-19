@@ -33,7 +33,7 @@ use super::{
 // Guild-specific sub-types
 // ---------------------------------------------------------------------------
 
-/// Guild verification level — controls who can send messages.
+/// Guild verification level: controls who can send messages.
 ///
 /// `0` = None, `1` = Low, `2` = Medium, `3` = High, `4` = VeryHigh.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -197,7 +197,7 @@ impl From<PremiumTier> for u8 {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(try_from = "u8", into = "u8")]
 pub enum NsfwLevel {
-    /// Default level — not explicitly classified.
+    /// Default level: not explicitly classified.
     Default = 0,
     /// Explicitly NSFW content allowed.
     Explicit = 1,

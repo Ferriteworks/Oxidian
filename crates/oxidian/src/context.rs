@@ -95,7 +95,7 @@ impl GatewayHandle {
 /// Provides ergonomic access to the HTTP client and the gateway so handlers
 /// can respond to events without holding global references.
 ///
-/// `Context` is cheap to clone — both inner fields are `Arc`-backed.
+/// `Context` is cheap to clone: both inner fields are `Arc`-backed.
 #[derive(Clone)]
 pub struct Context {
     /// The HTTP client for Discord REST API calls.

@@ -38,7 +38,7 @@ const DISCORD_EPOCH_MS: u64 = 1_420_070_400_000;
 ///
 /// # Bit layout (MSB = 63)
 /// ```text
-/// 63..22  timestamp   — ms since Discord epoch (2015-01-01)
+/// 63..22  timestamp  : ms since Discord epoch (2015-01-01)
 /// 21..17  worker ID
 /// 16..12  process ID
 /// 11..0   sequence number

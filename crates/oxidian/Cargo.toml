@@ -6,7 +6,7 @@ license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation = "https://docs.rs/oxidian"
-description = "A Discord API library for Rust — async, modular, and covering the full v10 API surface."
+description = "A Discord API library for Rust: async, modular, and covering the full v10 API surface."
 keywords = ["discord", "bot", "async", "api", "framework"]
 categories = ["api-bindings"]
 

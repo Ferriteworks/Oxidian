@@ -56,7 +56,7 @@ pub fn spawn(
             tokio::select! {
                 _ = interval.tick() => {
                     if !acked {
-                        warn!("gateway heartbeat not acknowledged — connection presumed lost");
+                        warn!("gateway heartbeat not acknowledged: connection presumed lost");
                         break;
                     }
 
@@ -65,7 +65,7 @@ pub fn spawn(
                     debug!(seq = ?seq, "sending heartbeat");
 
                     if write_tx.send(msg).await.is_err() {
-                        warn!("heartbeat write channel closed — stopping heartbeat task");
+                        warn!("heartbeat write channel closed: stopping heartbeat task");
                         break;
                     }
 

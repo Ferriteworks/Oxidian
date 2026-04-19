@@ -163,7 +163,7 @@ impl Shard {
                     return Ok(());
                 }
                 Ok(Some(state)) => {
-                    // Gateway sent op 7 or op 9 (resumable) — reconnect and resume.
+                    // Gateway sent op 7 or op 9 (resumable): reconnect and resume.
                     attempts += 1;
                     if attempts >= MAX_RETRIES {
                         error!(attempts, "exceeded maximum gateway reconnect attempts");
@@ -182,7 +182,7 @@ impl Shard {
                     resumable: false,
                 }))
                 | Err(OxidianError::Gateway(GatewayError::Connection(_))) => {
-                    // Non-resumable — start a fresh session after backoff.
+                    // Non-resumable: start a fresh session after backoff.
                     session = None;
                     attempts += 1;
                     if attempts >= MAX_RETRIES {
@@ -196,7 +196,7 @@ impl Shard {
                         std::time::Duration::from_secs(2u64.pow(attempts.min(6)));
                     warn!(
                         backoff_secs = backoff.as_secs(),
-                        "transient error — reconnecting with fresh Identify after backoff"
+                        "transient error: reconnecting with fresh Identify after backoff"
                     );
                     tokio::time::sleep(backoff).await;
                 }

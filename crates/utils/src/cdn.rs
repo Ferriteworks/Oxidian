@@ -62,7 +62,7 @@ fn append_size(url: String, size: Option<u16>) -> String {
 /// User avatar URL.
 ///
 /// If `hash` is `None` the default avatar is returned (no format or size applies).
-/// Animated hashes start with `a_` — pass [`ImageFormat::Gif`] or the correct
+/// Animated hashes start with `a_`: pass [`ImageFormat::Gif`] or the correct
 /// ext is chosen automatically.
 pub fn user_avatar(
     user_id: u64,
@@ -186,7 +186,7 @@ pub fn application_asset(
 
 /// Guild sticker URL.
 pub fn sticker(sticker_id: u64) -> String {
-    // Stickers are served as PNG (static) or JSON (Lottie) — PNG is the safe default.
+    // Stickers are served as PNG (static) or JSON (Lottie): PNG is the safe default.
     format!("{CDN}/stickers/{sticker_id}.png")
 }
 

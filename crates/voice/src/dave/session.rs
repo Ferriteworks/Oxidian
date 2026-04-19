@@ -20,7 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//! DAVE session — combines protocol state with per-sender key sets.
+//! DAVE session: combines protocol state with per-sender key sets.
 //!
 //! A `DaveSession` is created when a voice channel uses E2EE and is updated
 //! as members join or leave and as new MLS epochs are committed.

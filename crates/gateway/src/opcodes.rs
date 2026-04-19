@@ -26,27 +26,27 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Opcode {
-    /// Receive — an event was dispatched.
+    /// Receive: an event was dispatched.
     Dispatch = 0,
-    /// Send / Receive — keep the WebSocket connection alive.
+    /// Send / Receive: keep the WebSocket connection alive.
     Heartbeat = 1,
-    /// Send — start a new session during the initial handshake.
+    /// Send: start a new session during the initial handshake.
     Identify = 2,
-    /// Send — update the client's presence / status.
+    /// Send: update the client's presence / status.
     PresenceUpdate = 3,
-    /// Send — used to join, move, or disconnect from a voice channel.
+    /// Send: used to join, move, or disconnect from a voice channel.
     VoiceStateUpdate = 4,
-    /// Send — resume a previously disconnected session.
+    /// Send: resume a previously disconnected session.
     Resume = 6,
-    /// Receive — Discord requests the client to reconnect and resume.
+    /// Receive: Discord requests the client to reconnect and resume.
     Reconnect = 7,
-    /// Send — request members for a guild.
+    /// Send: request members for a guild.
     RequestGuildMembers = 8,
-    /// Receive — the session has been invalidated; may or may not be resumable.
+    /// Receive: the session has been invalidated; may or may not be resumable.
     InvalidSession = 9,
-    /// Receive — sent on connect; contains the heartbeat interval.
+    /// Receive: sent on connect; contains the heartbeat interval.
     Hello = 10,
-    /// Receive — acknowledgement of a heartbeat sent by the client.
+    /// Receive: acknowledgement of a heartbeat sent by the client.
     HeartbeatAck = 11,
 }
 

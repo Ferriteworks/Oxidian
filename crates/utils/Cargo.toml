@@ -6,7 +6,7 @@ license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation = "https://docs.rs/oxidian-utils"
-description = "Utility helpers for the Oxidian Discord library — CDN URLs, mention formatters, and timestamp tools."
+description = "Utility helpers for the Oxidian Discord library: CDN URLs, mention formatters, and timestamp tools."
 keywords = ["discord", "bot", "utilities", "cdn", "async"]
 categories = ["api-bindings"]
 

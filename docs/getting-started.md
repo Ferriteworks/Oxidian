@@ -4,7 +4,7 @@ This guide walks you through setting up a basic Discord bot with Oxidian from sc
 
 ## Prerequisites
 
-- Rust 1.75 or later — install via [rustup](https://rustup.rs)
+- Rust 1.75 or later: install via [rustup](https://rustup.rs)
 - A Discord application with a bot user and a token (create one at the [Discord Developer Portal](https://discord.com/developers/applications))
 - The bot must be invited to a server so you can test it
 
@@ -134,7 +134,7 @@ Use `bulk_overwrite_global_commands` for production (takes up to an hour to prop
 
 ## What's happening
 
-- `Intents` is a bitflags type — combine constants with `|`. `MESSAGE_CONTENT` is a privileged intent that must be enabled in the Developer Portal under your bot settings.
+- `Intents` is a bitflags type: combine constants with `|`. `MESSAGE_CONTENT` is a privileged intent that must be enabled in the Developer Portal under your bot settings.
 - `.module(FunModule)` registers all of `FunModule`'s prefix commands and stores it for slash routing.
 - When Discord sends an `INTERACTION_CREATE` event, Oxidian matches the command name against each module's `slash_commands()` list and calls `handle_interaction` on the matching module.
 - `init_logging()` reads `RUST_LOG`. Set `RUST_LOG=debug` to see every gateway payload.

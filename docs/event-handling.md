@@ -1,6 +1,6 @@
 # Event Handling
 
-When the bot connects to Discord over the gateway, Discord sends a stream of events — messages, guild updates, members joining, interactions, and so on. Oxidian delivers these to your code through the `EventHandler` trait.
+When the bot connects to Discord over the gateway, Discord sends a stream of events: messages, guild updates, members joining, interactions, and so on. Oxidian delivers these to your code through the `EventHandler` trait.
 
 ## Implementing EventHandler
 
@@ -85,7 +85,7 @@ This is also handy for logging all events during development.
 
 ## Concurrency
 
-Each event is dispatched on its own Tokio task, so handlers for different events can run concurrently. Your `EventHandler` implementation must be `Send + Sync + 'static` — the `Arc<dyn EventHandler>` is shared across tasks.
+Each event is dispatched on its own Tokio task, so handlers for different events can run concurrently. Your `EventHandler` implementation must be `Send + Sync + 'static`: the `Arc<dyn EventHandler>` is shared across tasks.
 
 If you need shared mutable state, wrap it in an `Arc<Mutex<T>>` or `Arc<RwLock<T>>` inside your handler struct:
 
@@ -130,4 +130,4 @@ Common intents and what they unlock:
 | `GUILD_MESSAGES` | `MESSAGE_CREATE`, `MESSAGE_UPDATE` in guilds |
 | `MESSAGE_CONTENT` ⚠️ privileged | Message `content`, `attachments`, `embeds`, `components` fields |
 | `GUILD_MEMBERS` ⚠️ privileged | `GUILD_MEMBER_ADD`, `GUILD_MEMBER_UPDATE`, `GUILD_MEMBER_REMOVE` |
-| `GUILD_VOICE_STATES` | `VOICE_STATE_UPDATE` — required before joining voice |
+| `GUILD_VOICE_STATES` | `VOICE_STATE_UPDATE`: required before joining voice |

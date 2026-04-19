@@ -154,14 +154,14 @@ pub enum Route {
         user_id: Snowflake,
     },
 
-    /// `GET /gateway/bot` — returns the recommended shard count and WSS URL.
+    /// `GET /gateway/bot`: returns the recommended shard count and WSS URL.
     GetGatewayBot,
 
     /// `GET /applications/{application_id}/commands`
     GetGlobalCommands { application_id: Snowflake },
     /// `POST /applications/{application_id}/commands`
     CreateGlobalCommand { application_id: Snowflake },
-    /// `PUT /applications/{application_id}/commands` — bulk overwrite all global commands.
+    /// `PUT /applications/{application_id}/commands`: bulk overwrite all global commands.
     BulkOverwriteGlobalCommands { application_id: Snowflake },
     /// `DELETE /applications/{application_id}/commands/{command_id}`
     DeleteGlobalCommand {
@@ -178,7 +178,7 @@ pub enum Route {
         application_id: Snowflake,
         guild_id: Snowflake,
     },
-    /// `PUT /applications/{application_id}/guilds/{guild_id}/commands` — bulk overwrite all guild commands.
+    /// `PUT /applications/{application_id}/guilds/{guild_id}/commands`: bulk overwrite all guild commands.
     BulkOverwriteGuildCommands {
         application_id: Snowflake,
         guild_id: Snowflake,
@@ -211,23 +211,23 @@ pub enum Route {
     },
 
     // ── Threads ───────────────────────────────────────────────────────────
-    /// `POST /channels/{channel.id}/threads` — start a thread from a message or without one.
+    /// `POST /channels/{channel.id}/threads`: start a thread from a message or without one.
     CreateThread { channel_id: Snowflake },
-    /// `POST /channels/{channel.id}/messages/{message.id}/threads` — start a thread from a message.
+    /// `POST /channels/{channel.id}/messages/{message.id}/threads`: start a thread from a message.
     CreateThreadFromMessage {
         channel_id: Snowflake,
         message_id: Snowflake,
     },
-    /// `PUT /channels/{thread.id}/thread-members/@me` — join a thread.
+    /// `PUT /channels/{thread.id}/thread-members/@me`: join a thread.
     JoinThread { thread_id: Snowflake },
-    /// `DELETE /channels/{thread.id}/thread-members/@me` — leave a thread.
+    /// `DELETE /channels/{thread.id}/thread-members/@me`: leave a thread.
     LeaveThread { thread_id: Snowflake },
-    /// `PUT /channels/{thread.id}/thread-members/{user.id}` — add a member to a thread.
+    /// `PUT /channels/{thread.id}/thread-members/{user.id}`: add a member to a thread.
     AddThreadMember {
         thread_id: Snowflake,
         user_id: Snowflake,
     },
-    /// `DELETE /channels/{thread.id}/thread-members/{user.id}` — remove a member from a thread.
+    /// `DELETE /channels/{thread.id}/thread-members/{user.id}`: remove a member from a thread.
     RemoveThreadMember {
         thread_id: Snowflake,
         user_id: Snowflake,
@@ -236,7 +236,7 @@ pub enum Route {
     ListPublicArchivedThreads { channel_id: Snowflake },
     /// `GET /channels/{channel.id}/threads/archived/private`
     ListPrivateArchivedThreads { channel_id: Snowflake },
-    /// `PATCH /channels/{channel.id}` — modify a thread (archive, lock, rename, etc.).
+    /// `PATCH /channels/{channel.id}`: modify a thread (archive, lock, rename, etc.).
     ModifyThread { channel_id: Snowflake },
 
     // ── Guild Members (modify / timeout) ──────────────────────────────────
@@ -312,9 +312,9 @@ pub enum Route {
     // ── Entitlements (Monetization) ───────────────────────────────────────
     /// `GET /applications/{application.id}/entitlements`
     ListEntitlements { application_id: Snowflake },
-    /// `POST /applications/{application.id}/entitlements` — create a test entitlement.
+    /// `POST /applications/{application.id}/entitlements`: create a test entitlement.
     CreateTestEntitlement { application_id: Snowflake },
-    /// `DELETE /applications/{application.id}/entitlements/{entitlement.id}` — delete a test entitlement.
+    /// `DELETE /applications/{application.id}/entitlements/{entitlement.id}`: delete a test entitlement.
     DeleteTestEntitlement {
         application_id: Snowflake,
         entitlement_id: Snowflake,
@@ -333,13 +333,13 @@ pub enum Route {
     DeleteStageInstance { channel_id: Snowflake },
 
     // ── Polls ─────────────────────────────────────────────────────────────
-    /// `GET /channels/{channel.id}/polls/{message.id}/answers/{answer.id}` — list voters for an answer.
+    /// `GET /channels/{channel.id}/polls/{message.id}/answers/{answer.id}`: list voters for an answer.
     GetPollAnswerVoters {
         channel_id: Snowflake,
         message_id: Snowflake,
         answer_id: u32,
     },
-    /// `POST /channels/{channel.id}/polls/{message.id}/expire` — immediately end a poll.
+    /// `POST /channels/{channel.id}/polls/{message.id}/expire`: immediately end a poll.
     EndPoll {
         channel_id: Snowflake,
         message_id: Snowflake,
@@ -372,7 +372,7 @@ pub enum Route {
     // ── Sticker Packs ─────────────────────────────────────────────────────
     /// `GET /sticker-packs`
     ListStickerPacks,
-    /// `GET /stickers/{sticker.id}` — get a Nitro sticker by ID.
+    /// `GET /stickers/{sticker.id}`: get a Nitro sticker by ID.
     GetSticker { sticker_id: Snowflake },
     /// `GET /sticker-packs/{pack.id}`
     GetStickerPack { pack_id: Snowflake },
@@ -396,6 +396,43 @@ pub enum Route {
     DeleteApplicationEmoji {
         application_id: Snowflake,
         emoji_id: Snowflake,
+    },
+
+    // ── Webhooks ──────────────────────────────────────────────────────────
+    /// `GET /webhooks/{webhook.id}`
+    GetWebhook { webhook_id: Snowflake },
+    /// `GET /webhooks/{webhook.id}/{webhook.token}`
+    GetWebhookWithToken {
+        webhook_id: Snowflake,
+        webhook_token: String,
+    },
+    /// `PATCH /webhooks/{webhook.id}`
+    ModifyWebhook { webhook_id: Snowflake },
+    /// `DELETE /webhooks/{webhook.id}`
+    DeleteWebhook { webhook_id: Snowflake },
+    /// `POST /webhooks/{webhook.id}/{webhook.token}`: execute webhook.
+    ExecuteWebhook {
+        webhook_id: Snowflake,
+        webhook_token: String,
+    },
+
+    // ── Application Command Permissions (v2) ──────────────────────────────
+    /// `GET /applications/{application.id}/guilds/{guild.id}/commands/permissions`
+    GetGuildApplicationCommandPermissions {
+        application_id: Snowflake,
+        guild_id: Snowflake,
+    },
+    /// `GET /applications/{application.id}/guilds/{guild.id}/commands/{command.id}/permissions`
+    GetApplicationCommandPermissions {
+        application_id: Snowflake,
+        guild_id: Snowflake,
+        command_id: Snowflake,
+    },
+    /// `PUT /applications/{application.id}/guilds/{guild.id}/commands/{command.id}/permissions`
+    EditApplicationCommandPermissions {
+        application_id: Snowflake,
+        guild_id: Snowflake,
+        command_id: Snowflake,
     },
 }
 
@@ -433,7 +470,11 @@ impl Route {
             | Self::GetSticker { .. }
             | Self::GetStickerPack { .. }
             | Self::ListApplicationEmojis { .. }
-            | Self::GetApplicationEmoji { .. } => Method::Get,
+            | Self::GetApplicationEmoji { .. }
+            | Self::GetWebhook { .. }
+            | Self::GetWebhookWithToken { .. }
+            | Self::GetGuildApplicationCommandPermissions { .. }
+            | Self::GetApplicationCommandPermissions { .. } => Method::Get,
 
             Self::CreateMessage { .. }
             | Self::BulkDeleteMessages { .. }
@@ -452,13 +493,15 @@ impl Route {
             | Self::EndPoll { .. }
             | Self::CreateGuildSoundboardSound { .. }
             | Self::SendSoundboardSound { .. }
-            | Self::CreateApplicationEmoji { .. } => Method::Post,
+            | Self::CreateApplicationEmoji { .. }
+            | Self::ExecuteWebhook { .. } => Method::Post,
 
             Self::BulkOverwriteGlobalCommands { .. }
             | Self::BulkOverwriteGuildCommands { .. }
             | Self::CreateReaction { .. }
             | Self::JoinThread { .. }
-            | Self::AddThreadMember { .. } => Method::Put,
+            | Self::AddThreadMember { .. }
+            | Self::EditApplicationCommandPermissions { .. } => Method::Put,
 
             Self::EditMessage { .. }
             | Self::ModifyCurrentUser
@@ -470,7 +513,8 @@ impl Route {
             | Self::ModifyAutoModerationRule { .. }
             | Self::ModifyStageInstance { .. }
             | Self::ModifyGuildSoundboardSound { .. }
-            | Self::ModifyApplicationEmoji { .. } => Method::Patch,
+            | Self::ModifyApplicationEmoji { .. }
+            | Self::ModifyWebhook { .. } => Method::Patch,
 
             Self::DeleteMessage { .. }
             | Self::DeleteGlobalCommand { .. }
@@ -486,7 +530,8 @@ impl Route {
             | Self::DeleteTestEntitlement { .. }
             | Self::DeleteStageInstance { .. }
             | Self::DeleteGuildSoundboardSound { .. }
-            | Self::DeleteApplicationEmoji { .. } => Method::Delete,
+            | Self::DeleteApplicationEmoji { .. }
+            | Self::DeleteWebhook { .. } => Method::Delete,
         }
     }
 
@@ -784,6 +829,41 @@ impl Route {
                 application_id,
                 emoji_id,
             } => format!("{base}/applications/{application_id}/emojis/{emoji_id}"),
+
+            // ── Webhooks ─────────────────────────────────────────────────
+            Self::GetWebhook { webhook_id } => format!("{base}/webhooks/{webhook_id}"),
+            Self::GetWebhookWithToken {
+                webhook_id,
+                webhook_token,
+            } => format!("{base}/webhooks/{webhook_id}/{webhook_token}"),
+            Self::ModifyWebhook { webhook_id } => format!("{base}/webhooks/{webhook_id}"),
+            Self::DeleteWebhook { webhook_id } => format!("{base}/webhooks/{webhook_id}"),
+            Self::ExecuteWebhook {
+                webhook_id,
+                webhook_token,
+            } => format!("{base}/webhooks/{webhook_id}/{webhook_token}"),
+
+            // ── Application Command Permissions ──────────────────────────
+            Self::GetGuildApplicationCommandPermissions {
+                application_id,
+                guild_id,
+            } => format!(
+                "{base}/applications/{application_id}/guilds/{guild_id}/commands/permissions"
+            ),
+            Self::GetApplicationCommandPermissions {
+                application_id,
+                guild_id,
+                command_id,
+            } => format!(
+                "{base}/applications/{application_id}/guilds/{guild_id}/commands/{command_id}/permissions"
+            ),
+            Self::EditApplicationCommandPermissions {
+                application_id,
+                guild_id,
+                command_id,
+            } => format!(
+                "{base}/applications/{application_id}/guilds/{guild_id}/commands/{command_id}/permissions"
+            ),
         }
     }
 
@@ -937,6 +1017,31 @@ impl Route {
             | Self::DeleteApplicationEmoji { application_id, .. } => {
                 format!("application:{application_id}:emojis")
             }
+
+            // ── Webhooks ──────────────────────────────────────────────────
+            Self::GetWebhook { webhook_id }
+            | Self::ModifyWebhook { webhook_id }
+            | Self::DeleteWebhook { webhook_id } => format!("webhook:{webhook_id}"),
+            Self::GetWebhookWithToken { webhook_id, .. }
+            | Self::ExecuteWebhook { webhook_id, .. } => {
+                format!("webhook:{webhook_id}")
+            }
+
+            // ── Application Command Permissions ───────────────────────────
+            Self::GetGuildApplicationCommandPermissions {
+                application_id,
+                guild_id,
+            } => format!("application:{application_id}:guild:{guild_id}:commands"),
+            Self::GetApplicationCommandPermissions {
+                application_id,
+                guild_id,
+                ..
+            }
+            | Self::EditApplicationCommandPermissions {
+                application_id,
+                guild_id,
+                ..
+            } => format!("application:{application_id}:guild:{guild_id}:commands"),
         }
     }
 }

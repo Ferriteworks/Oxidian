@@ -56,7 +56,7 @@ pub struct Reaction {
 }
 
 // ---------------------------------------------------------------------------
-// MessageReference — for replies and forwards
+// MessageReference: for replies and forwards
 // ---------------------------------------------------------------------------
 
 /// Controls what type of reference a [`MessageReference`] is.
@@ -116,7 +116,7 @@ pub struct MessageReference {
 /// A snapshot of a forwarded message.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MessageSnapshot {
-    /// Partial message object — contains content, embeds, attachments, etc.
+    /// Partial message object: contains content, embeds, attachments, etc.
     pub message: MessageSnapshotData,
 }
 
@@ -214,7 +214,7 @@ pub struct Message {
 }
 
 // ---------------------------------------------------------------------------
-// CreateMessage — outgoing payload for REST message creation
+// CreateMessage: outgoing payload for REST message creation
 // ---------------------------------------------------------------------------
 
 /// Payload for creating a new message via the Discord REST API.
@@ -281,7 +281,7 @@ impl CreateMessage {
 
     /// Append a component (serialized to JSON).
     ///
-    /// Accepts any type that implements [`serde::Serialize`] — for example
+    /// Accepts any type that implements [`serde::Serialize`]: for example
     /// `ActionRow`, `Container`, etc.
     pub fn component(mut self, component: impl serde::Serialize) -> Self {
         let val = serde_json::to_value(component)

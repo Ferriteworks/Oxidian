@@ -117,8 +117,8 @@ impl VoiceConnection {
             hello["heartbeat_interval"].as_f64().unwrap_or(30_000.0) as u64;
         debug!(interval_ms, "received voice Hello");
 
-        // 2. Send Identify (op 0) — must be the first message we send.
-        //    max_dave_protocol_version: 1 — required on servers that enforce
+        // 2. Send Identify (op 0): must be the first message we send.
+        //    max_dave_protocol_version: 1: required on servers that enforce
         //    E2EE/DAVE.  We handle the DAVE transition handshake in the
         let identify_payload = serde_json::json!({
             "op": 0u8,
@@ -263,7 +263,7 @@ impl VoiceConnection {
 
     /// Set the speaking state (must be sent before transmitting audio).
     ///
-    /// `speaking` — `true` to start speaking, `false` to stop.
+    /// `speaking`: `true` to start speaking, `false` to stop.
     pub async fn speak(&self, speaking: bool) -> Result<(), OxidianError> {
         send_json(
             &self.write_tx,
@@ -610,7 +610,7 @@ async fn voice_event_loop(
                         info!(
                             transition_id,
                             active,
-                            "DAVE execute transition — new epoch active (op 28)"
+                            "DAVE execute transition: new epoch active (op 28)"
                         );
                     }
                     None => {

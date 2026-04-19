@@ -120,7 +120,7 @@ pub async fn connect(
 
     let (sink, mut stream) = ws.split();
 
-    // Sequence number — written by the event loop, read by the heartbeat task.
+    // Sequence number: written by the event loop, read by the heartbeat task.
     let (seq_tx, seq_rx) = watch::channel::<Option<u64>>(None);
 
     // Track session identifiers so we can build a resume payload if needed.
@@ -198,7 +198,7 @@ pub async fn connect(
         let payload: GatewayPayload = match serde_json::from_str(&text) {
             Ok(p) => p,
             Err(e) => {
-                warn!(error = %e, "failed to deserialize gateway payload — skipping");
+                warn!(error = %e, "failed to deserialize gateway payload: skipping");
                 continue;
             }
         };
@@ -239,7 +239,7 @@ pub async fn connect(
                 let _ = write_tx.send(msg).await;
             }
             Some(Opcode::Reconnect) => {
-                info!("gateway requested reconnect (op 7) — will attempt resume");
+                info!("gateway requested reconnect (op 7): will attempt resume");
                 let _ = hb_tx.send(HeartbeatMessage::Stop).await;
                 let state = current_session.map(|(session_id, resume_gateway_url)| {
                     SessionState {

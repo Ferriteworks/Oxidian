@@ -50,7 +50,7 @@ async fn main() {
     let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<DispatchEvent>(256);
     let shard = Shard::new(&token, Intents::GUILDS | Intents::GUILD_MESSAGES, event_tx);
 
-    // 3. Build a Context (HTTP + gateway handle) — same one used in Bot.
+    // 3. Build a Context (HTTP + gateway handle): same one used in Bot.
     let gateway = GatewayHandle::new(shard.gateway_sender());
 
     #[cfg(feature = "cache")]
@@ -69,7 +69,7 @@ async fn main() {
         }
     });
 
-    // 5. Your own event loop — pattern match on whatever you care about.
+    // 5. Your own event loop: pattern match on whatever you care about.
     while let Some(event) = event_rx.recv().await {
         let ctx = ctx.clone();
         tokio::spawn(async move {

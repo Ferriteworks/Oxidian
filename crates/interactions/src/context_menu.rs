@@ -35,7 +35,7 @@ use oxidian_core::{models::interaction::ApplicationCommandType, snowflake::Snowf
 pub struct UserCommand {
     /// The command name (1–32 chars).
     pub name: String,
-    /// Command type — always [`ApplicationCommandType::User`].
+    /// Command type: always [`ApplicationCommandType::User`].
     #[serde(rename = "type")]
     pub kind: ApplicationCommandType,
     /// Required member permissions as a bitfield string.
@@ -69,7 +69,7 @@ impl UserCommand {
 pub struct MessageCommand {
     /// The command name (1–32 chars).
     pub name: String,
-    /// Command type — always [`ApplicationCommandType::Message`].
+    /// Command type: always [`ApplicationCommandType::Message`].
     #[serde(rename = "type")]
     pub kind: ApplicationCommandType,
     /// Required member permissions as a bitfield string.

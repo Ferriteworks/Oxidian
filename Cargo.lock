@@ -1039,7 +1039,6 @@ name = "oxidian-http"
 version = "0.1.0"
 dependencies = [
  "oxidian-core",
- "oxidian-interactions",
  "reqwest",
  "serde",
  "serde_json",

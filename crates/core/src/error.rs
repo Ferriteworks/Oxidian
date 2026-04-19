@@ -30,11 +30,11 @@ use std::fmt;
 #[non_exhaustive]
 pub enum Error {
     /// An error from the HTTP client or Discord REST API layer.
-    #[error("HTTP layer error — {0}")]
+    #[error("HTTP layer error: {0}")]
     Http(#[from] HttpError),
 
     /// An error from the WebSocket gateway layer (connection, dispatch, heartbeat).
-    #[error("gateway layer error — {0}")]
+    #[error("gateway layer error: {0}")]
     Gateway(#[from] GatewayError),
 
     /// An error from the voice layer (WebSocket signalling, UDP media, DAVE E2EE).
@@ -42,11 +42,11 @@ pub enum Error {
     Voice(#[from] VoiceError),
 
     /// A JSON (de)serialisation failure while processing a Discord payload.
-    #[error("failed to (de)serialize Discord payload — {0}")]
+    #[error("failed to (de)serialize Discord payload: {0}")]
     Serialization(#[from] serde_json::Error),
 
     /// Discord returned a non-2xx response with a structured JSON error body.
-    #[error("Discord API returned error {code} — {message}")]
+    #[error("Discord API returned error {code}: {message}")]
     Api {
         /// Discord JSON error code (<https://discord.com/developers/docs/topics/opcodes-and-status-codes#json>).
         code: u32,
@@ -55,20 +55,20 @@ pub enum Error {
     },
 
     /// The requested resource does not exist on Discord or could not be found locally.
-    #[error("resource not found — {0}")]
+    #[error("resource not found: {0}")]
     NotFound(String),
 
     /// The supplied snowflake or identifier was missing, malformed, or out of range.
-    #[error("invalid or malformed ID — {0}")]
+    #[error("invalid or malformed ID: {0}")]
     InvalidId(String),
 
     /// The bot or user lacks the Discord permissions required to perform this action.
-    #[error("missing required permissions to perform this action — {0}")]
+    #[error("missing required permissions to perform this action: {0}")]
     MissingPermissions(String),
 
     /// The bot token is absent, has been revoked, or failed Discord's verification.
     #[error(
-        "authentication failed; check that the bot token is correct and has not been revoked — {0}"
+        "authentication failed; check that the bot token is correct and has not been revoked: {0}"
     )]
     Auth(String),
 
@@ -85,11 +85,11 @@ pub enum Error {
     },
 
     /// An unexpected internal error that does not fit any other category.
-    #[error("unexpected internal error — {0}")]
+    #[error("unexpected internal error: {0}")]
     Internal(String),
 
     /// An unexpected error that does not fit any other category (e.g. a dependency failure).
-    #[error("unexpected error — {0}")]
+    #[error("unexpected error: {0}")]
     Unexpected(String),
 }
 
@@ -115,15 +115,15 @@ impl Error {
 #[non_exhaustive]
 pub enum HttpError {
     /// The underlying HTTP transport layer raised an error (e.g. DNS failure, TLS error, connection refused).
-    #[error("HTTP transport error — {0}")]
+    #[error("HTTP transport error: {0}")]
     Request(String),
 
     /// Discord returned a status code that was not expected for this endpoint.
-    #[error("Discord responded with unexpected HTTP {status} — body: {body}")]
+    #[error("Discord responded with unexpected HTTP {status}: body: {body}")]
     UnexpectedStatus { status: u16, body: String },
 
     /// The response body could not be decoded into the expected type.
-    #[error("failed to decode response body — {0}")]
+    #[error("failed to decode response body: {0}")]
     Decode(String),
 
     /// The HTTP request did not receive a response within the allowed time.
@@ -136,7 +136,7 @@ pub enum HttpError {
 #[non_exhaustive]
 pub enum GatewayError {
     /// The WebSocket connection to the Discord gateway could not be established or was unexpectedly dropped.
-    #[error("gateway WebSocket connection error — {0}")]
+    #[error("gateway WebSocket connection error: {0}")]
     Connection(String),
 
     /// The gateway sent an opcode that is unknown or not valid in the current state.
@@ -144,7 +144,7 @@ pub enum GatewayError {
     InvalidOpcode(u8),
 
     /// The gateway did not acknowledge a heartbeat within the expected interval; the connection is considered lost.
-    #[error("gateway heartbeat was not acknowledged within the expected interval — connection presumed lost")]
+    #[error("gateway heartbeat was not acknowledged within the expected interval: connection presumed lost")]
     HeartbeatTimeout,
 
     /// Discord invalidated the current session.  If `resumable` is `true` a RESUME is possible; otherwise a fresh IDENTIFY is required.
@@ -165,15 +165,15 @@ pub enum GatewayError {
 #[non_exhaustive]
 pub enum VoiceError {
     /// The WebSocket signalling connection to Discord's voice server failed.
-    #[error("voice WebSocket signalling connection error — {0}")]
+    #[error("voice WebSocket signalling connection error: {0}")]
     Connection(String),
 
     /// The UDP media transport encountered an error (e.g. socket bind failure, send/recv error).
-    #[error("voice UDP media transport error — {0}")]
+    #[error("voice UDP media transport error: {0}")]
     Udp(String),
 
     /// An error in the DAVE end-to-end encryption protocol (key exchange, ratchet, or decryption failure).
-    #[error("DAVE E2EE protocol error — {0}")]
+    #[error("DAVE E2EE protocol error: {0}")]
     Dave(String),
 
     /// The voice session was terminated or expired; a new session must be negotiated.

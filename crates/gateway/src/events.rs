@@ -176,7 +176,7 @@ pub struct ReactionData {
     pub emoji: ReactionEmoji,
 }
 
-/// Data from `MESSAGE_REACTION_REMOVE_ALL` — all reactions removed from a message.
+/// Data from `MESSAGE_REACTION_REMOVE_ALL`: all reactions removed from a message.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ReactionRemoveAllData {
     pub channel_id: Snowflake,
@@ -184,7 +184,7 @@ pub struct ReactionRemoveAllData {
     pub guild_id: Option<Snowflake>,
 }
 
-/// Data from `MESSAGE_REACTION_REMOVE_EMOJI` — all reactions for one emoji removed.
+/// Data from `MESSAGE_REACTION_REMOVE_EMOJI`: all reactions for one emoji removed.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ReactionRemoveEmojiData {
     pub channel_id: Snowflake,
@@ -453,7 +453,7 @@ pub struct GuildStickersUpdateData {
     pub stickers: Vec<Sticker>,
 }
 
-/// Data from a `GUILD_INTEGRATIONS_UPDATE` event (thin payload — just the guild).
+/// Data from a `GUILD_INTEGRATIONS_UPDATE` event (thin payload: just the guild).
 #[derive(Debug, Clone, Deserialize)]
 pub struct GuildIntegrationsUpdateData {
     pub guild_id: Snowflake,
@@ -719,7 +719,7 @@ pub enum DispatchEvent {
     GuildAuditLogEntryCreate(AuditLogEntry),
 
     // ── Integrations ──────────────────────────────────────────────────────────
-    /// The guild's integration list changed (thin event — no detail).
+    /// The guild's integration list changed (thin event: no detail).
     GuildIntegrationsUpdate(GuildIntegrationsUpdateData),
     IntegrationCreate(Integration),
     IntegrationUpdate(Integration),

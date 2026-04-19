@@ -24,9 +24,9 @@
 //!
 //! Three modules cover the most common Discord-specific formatting needs:
 //!
-//! - [`cdn`] — Build Discord CDN asset URLs (avatars, icons, emoji, stickers, …).
-//! - [`mention`] — Format mention strings (`<@user>`, `<#channel>`, `</cmd:id>`, …).
-//! - [`timestamp`] — Format Discord markdown timestamps and extract creation times
+//! - [`cdn`]: Build Discord CDN asset URLs (avatars, icons, emoji, stickers, …).
+//! - [`mention`]: Format mention strings (`<@user>`, `<#channel>`, `</cmd:id>`, …).
+//! - [`timestamp`]: Format Discord markdown timestamps and extract creation times
 //!   from snowflake IDs.
 
 pub mod cdn;

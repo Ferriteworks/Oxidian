@@ -22,7 +22,7 @@
 
 //! In-memory cache updated in real time by gateway events.
 //!
-//! The cache is **never** proactively fetched —- it is populated and maintained
+//! The cache is **never** proactively fetched: it is populated and maintained
 //! exclusively by gateway dispatch events. Call [`Cache::update`] with every
 //! [`DispatchEvent`] **before** firing user event handlers.
 //!
@@ -67,7 +67,7 @@ type GuildEntity = (Snowflake, Snowflake);
 
 /// In-memory cache of Discord state, updated by gateway events.
 ///
-/// Every public map is a [`DashMap`] — concurrent reads never block each other
+/// Every public map is a [`DashMap`]: concurrent reads never block each other
 /// and writers only lock the affected shard (bucket), not the entire map.
 pub struct Cache {
     /// Current bot user, populated on `READY`.
@@ -214,7 +214,7 @@ impl Cache {
             .collect()
     }
 
-    /// All members in a guild (from cache — may be incomplete if GUILD_MEMBERS intent is off).
+    /// All members in a guild (from cache: may be incomplete if GUILD_MEMBERS intent is off).
     pub fn guild_members(&self, guild_id: Snowflake) -> Vec<Member> {
         self.members
             .iter()
@@ -244,7 +244,7 @@ impl Cache {
             }
             DispatchEvent::GuildDelete(unavailable) => {
                 if !unavailable.unavailable {
-                    // Bot was removed — purge all guild-scoped data.
+                    // Bot was removed: purge all guild-scoped data.
                     trace!(guild_id = %unavailable.id.get(), "cache: remove guild (left)");
                     self.purge_guild(unavailable.id);
                 }
@@ -308,7 +308,7 @@ impl Cache {
             DispatchEvent::GuildMemberRemove(data) => {
                 trace!(guild_id = %data.guild_id.get(), user_id = %data.user.id.get(), "cache: remove member");
                 self.members.remove(&(data.guild_id, data.user.id));
-                // Don't remove from users — they may be in other guilds.
+                // Don't remove from users: they may be in other guilds.
             }
             DispatchEvent::GuildMembersChunk(data) => {
                 trace!(guild_id = %data.guild_id.get(), count = data.members.len(), "cache: members chunk");
@@ -329,7 +329,7 @@ impl Cache {
                         self.voice_states
                             .insert((guild_id, state.user_id), state.clone());
                     } else {
-                        // User left voice — remove.
+                        // User left voice: remove.
                         trace!(guild_id = %guild_id.get(), user_id = %state.user_id.get(), "cache: remove voice state");
                         self.voice_states.remove(&(guild_id, state.user_id));
                     }
@@ -377,7 +377,7 @@ impl Cache {
                 self.users.insert(msg.author.id, msg.author.clone());
             }
 
-            // Everything else — no cache impact.
+            // Everything else: no cache impact.
             _ => {}
         }
     }

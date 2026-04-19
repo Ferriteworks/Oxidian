@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 pub mod allowed_mentions;
+pub mod automod;
 pub mod channel;
 pub mod embed;
 pub mod emoji;

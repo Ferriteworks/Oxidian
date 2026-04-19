@@ -33,7 +33,7 @@ use reqwest::{
     header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE, USER_AGENT},
     multipart, StatusCode,
 };
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use tracing::{debug, warn};
 
@@ -63,7 +63,7 @@ struct DiscordApiError {
 
 /// Async HTTP client for the Discord REST API.
 ///
-/// Cheap to clone — the inner `reqwest::Client` and `RateLimiter` both use
+/// Cheap to clone: the inner `reqwest::Client` and `RateLimiter` both use
 /// `Arc` internally.
 #[derive(Debug, Clone)]
 pub struct HttpClient {
@@ -74,7 +74,7 @@ pub struct HttpClient {
 impl HttpClient {
     /// Create a new [`HttpClient`] authenticated with the given bot token.
     ///
-    /// The token must be the raw value **without** the `"Bot "` prefix — this
+    /// The token must be the raw value **without** the `"Bot "` prefix: this
     /// method prepends it.
     pub fn new(token: &str) -> Result<Self, OxidianError> {
         let auth_value = format!("Bot {token}");
@@ -148,7 +148,7 @@ impl HttpClient {
                     warn!(
                         bucket = %bucket_hint,
                         retry_after_secs = retry_after,
-                        "429 on bucket — sleeping before retry"
+                        "429 on bucket: sleeping before retry"
                     );
                     tokio::time::sleep(std::time::Duration::from_secs_f64(retry_after))
                         .await;
@@ -186,7 +186,7 @@ impl HttpClient {
                 .await
                 .map_err(|e| HttpError::Decode(e.to_string()))?;
 
-            // 204 No Content and similar empty-body successes — try deserialising
+            // 204 No Content and similar empty-body successes: try deserialising
             // from JSON `null` so that `Result<()>` callers succeed.
             let effective = if response_text.is_empty() {
                 "null"
@@ -196,7 +196,7 @@ impl HttpClient {
 
             return serde_json::from_str::<T>(effective).map_err(|e| {
                 HttpError::Decode(format!(
-                    "failed to deserialize {}: {e} — body: {response_text}",
+                    "failed to deserialize {}: {e}: body: {response_text}",
                     std::any::type_name::<T>()
                 ))
                 .into()
@@ -400,7 +400,12 @@ impl HttpClient {
 
     /// Register (or overwrite) a global command.
     ///
-    /// `body` is a serialised [`ApplicationCommand`](oxidian_interactions::command::ApplicationCommand).
+    /// `body` is a JSON object matching Discord's
+    /// [application command structure][1]. Use
+    /// [`oxidian_interactions::command::ApplicationCommand`] or any other
+    /// [`Serialize`] type that produces the same shape.
+    ///
+    /// [1]: https://discord.com/developers/docs/interactions/application-commands#application-command-object
     pub async fn create_global_command(
         &self,
         application_id: oxidian_core::snowflake::Snowflake,
@@ -459,17 +464,20 @@ impl HttpClient {
         .await
     }
 
-    /// Bulk overwrite **all** global commands.
+    /// Bulk overwrite all global commands.
     ///
     /// Replaces the full global command list atomically. Commands not in
     /// `commands` are deleted; commands in `commands` are created or updated.
+    /// Equivalent to `PUT /applications/{app}/commands`.
     ///
-    /// This is the recommended way to sync your command definitions with
-    /// Discord. Equivalent to `PUT /applications/{app}/commands`.
-    pub async fn bulk_overwrite_global_commands(
+    /// `commands` is any slice whose element type implements [`Serialize`] and
+    /// matches Discord's application command shape. Callers typically pass
+    /// `&[oxidian_interactions::command::ApplicationCommand]`, but any custom
+    /// struct works.
+    pub async fn bulk_overwrite_global_commands<C: Serialize>(
         &self,
         application_id: oxidian_core::snowflake::Snowflake,
-        commands: &[oxidian_interactions::command::ApplicationCommand],
+        commands: &[C],
     ) -> Result<Value, OxidianError> {
         let body =
             serde_json::to_value(commands).map_err(OxidianError::Serialization)?;
@@ -480,17 +488,16 @@ impl HttpClient {
         .await
     }
 
-    /// Bulk overwrite **all** guild-scoped commands.
+    /// Bulk overwrite all guild-scoped commands.
     ///
     /// Replaces the full guild command list atomically. Commands not in
     /// `commands` are deleted; commands in `commands` are created or updated.
-    ///
     /// Equivalent to `PUT /applications/{app}/guilds/{guild}/commands`.
-    pub async fn bulk_overwrite_guild_commands(
+    pub async fn bulk_overwrite_guild_commands<C: Serialize>(
         &self,
         application_id: oxidian_core::snowflake::Snowflake,
         guild_id: oxidian_core::snowflake::Snowflake,
-        commands: &[oxidian_interactions::command::ApplicationCommand],
+        commands: &[C],
     ) -> Result<Value, OxidianError> {
         let body =
             serde_json::to_value(commands).map_err(OxidianError::Serialization)?;
@@ -793,12 +800,12 @@ impl HttpClient {
     ///
     /// Discord requires stickers to be sent as `multipart/form-data`.
     ///
-    /// - `name` — sticker name (2–30 characters)
-    /// - `description` — sticker description (2–100 characters)
-    /// - `tags` — comma-separated autocomplete tags (max 200 characters)
-    /// - `file_bytes` — raw file contents (PNG, APNG, GIF, or Lottie JSON)
-    /// - `mime_type` — e.g. `"image/png"`, `"image/gif"`, `"application/json"` for Lottie
-    /// - `file_name` — file name sent in the part, e.g. `"sticker.png"`
+    /// - `name`: sticker name (2–30 characters)
+    /// - `description`: sticker description (2–100 characters)
+    /// - `tags`: comma-separated autocomplete tags (max 200 characters)
+    /// - `file_bytes`: raw file contents (PNG, APNG, GIF, or Lottie JSON)
+    /// - `mime_type`: e.g. `"image/png"`, `"image/gif"`, `"application/json"` for Lottie
+    /// - `file_name`: file name sent in the part, e.g. `"sticker.png"`
     pub async fn create_guild_sticker(
         &self,
         guild_id: oxidian_core::snowflake::Snowflake,
@@ -1003,7 +1010,7 @@ impl HttpClient {
 
     /// Get the list of users who voted for a given poll answer.
     ///
-    /// Supports optional `after` / `limit` query params — pass them as part
+    /// Supports optional `after` / `limit` query params: pass them as part
     /// of the URL by appending query params to a wrapper if needed. The raw
     /// `GET` endpoint returns `{ "users": [...] }`.
     pub async fn get_poll_answer_voters(
@@ -1217,6 +1224,127 @@ impl HttpClient {
         .await
     }
 
+    // ── Webhooks ─────────────────────────────────────────────────────────
+
+    /// Fetch a webhook by ID.
+    pub async fn get_webhook(
+        &self,
+        webhook_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::GetWebhook { webhook_id }, None).await
+    }
+
+    /// Fetch a webhook using its token (does not require bot auth).
+    pub async fn get_webhook_with_token(
+        &self,
+        webhook_id: oxidian_core::snowflake::Snowflake,
+        webhook_token: String,
+    ) -> Result<Value, OxidianError> {
+        self.request(
+            Route::GetWebhookWithToken {
+                webhook_id,
+                webhook_token,
+            },
+            None,
+        )
+        .await
+    }
+
+    /// Modify an existing webhook.
+    pub async fn modify_webhook(
+        &self,
+        webhook_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(Route::ModifyWebhook { webhook_id }, Some(body))
+            .await
+    }
+
+    /// Delete a webhook.
+    pub async fn delete_webhook(
+        &self,
+        webhook_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<(), OxidianError> {
+        self.request(Route::DeleteWebhook { webhook_id }, None).await
+    }
+
+    /// Execute a webhook with a JSON body.
+    pub async fn execute_webhook(
+        &self,
+        webhook_id: oxidian_core::snowflake::Snowflake,
+        webhook_token: String,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(
+            Route::ExecuteWebhook {
+                webhook_id,
+                webhook_token,
+            },
+            Some(body),
+        )
+        .await
+    }
+
+    // ── Application Command Permissions (v2) ─────────────────────────────
+
+    /// Fetch permissions for every guild command in one call.
+    pub async fn get_guild_application_command_permissions(
+        &self,
+        application_id: oxidian_core::snowflake::Snowflake,
+        guild_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(
+            Route::GetGuildApplicationCommandPermissions {
+                application_id,
+                guild_id,
+            },
+            None,
+        )
+        .await
+    }
+
+    /// Fetch permissions for a single guild command.
+    pub async fn get_application_command_permissions(
+        &self,
+        application_id: oxidian_core::snowflake::Snowflake,
+        guild_id: oxidian_core::snowflake::Snowflake,
+        command_id: oxidian_core::snowflake::Snowflake,
+    ) -> Result<Value, OxidianError> {
+        self.request(
+            Route::GetApplicationCommandPermissions {
+                application_id,
+                guild_id,
+                command_id,
+            },
+            None,
+        )
+        .await
+    }
+
+    /// Replace permissions for a single guild command.
+    ///
+    /// Requires a bearer token with the `applications.commands.permissions.update`
+    /// scope: bot tokens cannot perform this operation. The caller is
+    /// responsible for providing an [`HttpClient`] built with the correct
+    /// credentials.
+    pub async fn edit_application_command_permissions(
+        &self,
+        application_id: oxidian_core::snowflake::Snowflake,
+        guild_id: oxidian_core::snowflake::Snowflake,
+        command_id: oxidian_core::snowflake::Snowflake,
+        body: Value,
+    ) -> Result<Value, OxidianError> {
+        self.request(
+            Route::EditApplicationCommandPermissions {
+                application_id,
+                guild_id,
+                command_id,
+            },
+            Some(body),
+        )
+        .await
+    }
+
     fn build_request(
         &self,
         route: &Route,
@@ -1304,7 +1432,7 @@ impl HttpClient {
                     warn!(
                         bucket = %bucket_hint,
                         retry_after_secs = retry_after,
-                        "429 on bucket — sleeping before retry"
+                        "429 on bucket: sleeping before retry"
                     );
                     tokio::time::sleep(std::time::Duration::from_secs_f64(retry_after))
                         .await;
@@ -1353,7 +1481,7 @@ impl HttpClient {
 
             return serde_json::from_str::<T>(effective).map_err(|e| {
                 HttpError::Decode(format!(
-                    "failed to deserialize {}: {e} — body: {response_text}",
+                    "failed to deserialize {}: {e}: body: {response_text}",
                     std::any::type_name::<T>()
                 ))
                 .into()

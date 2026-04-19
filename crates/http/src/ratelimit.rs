@@ -114,7 +114,7 @@ impl RateLimitHeaders {
 
 /// Shared, async-safe rate-limit state for all Discord buckets.
 ///
-/// Clone cheaply — the inner state is wrapped in `Arc<Mutex<_>>`.
+/// Clone cheaply: the inner state is wrapped in `Arc<Mutex<_>>`.
 #[derive(Debug, Clone, Default)]
 pub struct RateLimiter {
     /// Map of bucket ID → bucket state.
@@ -142,7 +142,7 @@ impl RateLimiter {
                     let wait = reset_at - now;
                     warn!(
                         wait_ms = wait.as_millis(),
-                        "global rate limit active — sleeping"
+                        "global rate limit active: sleeping"
                     );
                     drop(global);
                     sleep(wait).await;
@@ -160,7 +160,7 @@ impl RateLimiter {
                     warn!(
                         bucket = id,
                         wait_ms = wait.as_millis(),
-                        "bucket exhausted — sleeping until reset"
+                        "bucket exhausted: sleeping until reset"
                     );
                     drop(buckets);
                     sleep(wait).await;
@@ -216,7 +216,7 @@ impl RateLimiter {
         *self.global_reset.lock().await = Some(reset_at);
         warn!(
             retry_after_secs,
-            "global 429 received — all requests paused"
+            "global 429 received: all requests paused"
         );
     }
 }

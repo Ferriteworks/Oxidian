@@ -1,6 +1,6 @@
 # Commands and Modules
 
-Oxidian organises commands through the **module** pattern. A module is a struct that implements the `Module` trait, which lets it declare prefix commands, slash command definitions, and an interaction handler — all in one place.
+Oxidian organises commands through the **module** pattern. A module is a struct that implements the `Module` trait, which lets it declare prefix commands, slash command definitions, and an interaction handler: all in one place.
 
 ## The Module trait
 
@@ -102,7 +102,7 @@ Command::new("greet", |ctx: Context, msg: Message, args: Vec<String>| async move
 Sending `!greet Alice` will reply `hey, Alice!`.
 
 **Command name rules:**
-- Case-sensitive — `!Ping` won't match a command named `ping`.
+- Case-sensitive: `!Ping` won't match a command named `ping`.
 - No spaces (first word after the prefix).
 - Registering the same name twice silently overwrites the first handler.
 
@@ -127,7 +127,7 @@ fn slash_commands(&self) -> Vec<ApplicationCommand> {
 }
 ```
 
-Declarations produced by `slash_commands()` are *definitions* only — Discord doesn't know about them until you sync them via the HTTP client. See [Syncing slash commands](#syncing-slash-commands) below.
+Declarations produced by `slash_commands()` are *definitions* only: Discord doesn't know about them until you sync them via the HTTP client. See [Syncing slash commands](#syncing-slash-commands) below.
 
 ## Syncing slash commands
 

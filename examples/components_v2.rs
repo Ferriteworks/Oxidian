@@ -68,7 +68,7 @@ impl EventHandler for Handler {
                     TextDisplay::new("# Components V2 Demo\nBuilt with Oxidian.");
 
                 let section = Section::new()
-                    .text(TextDisplay::new("**Oxidian** — a Rust Discord library."))
+                    .text(TextDisplay::new("**Oxidian**: a Rust Discord library."))
                     .accessory(Thumbnail::new(
                         "https://cdn.discordapp.com/embed/avatars/0.png",
                     ));

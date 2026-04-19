@@ -584,7 +584,7 @@ impl InteractionCallbackData {
 
     /// Append a component (serialized to JSON) to this callback data.
     ///
-    /// Accepts any component type that implements [`serde::Serialize`] — for
+    /// Accepts any component type that implements [`serde::Serialize`]: for
     /// example `ActionRow`, `Container`, `TextDisplay`, etc.
     pub fn component(mut self, component: impl serde::Serialize) -> Self {
         let val = serde_json::to_value(component)
@@ -660,7 +660,7 @@ impl InteractionResponse {
     /// Respond with a modal dialog.
     ///
     /// `components` should be action rows containing text inputs. Any type
-    /// that implements [`serde::Serialize`] is accepted — each element is
+    /// that implements [`serde::Serialize`] is accepted: each element is
     /// serialized to JSON internally.
     pub fn modal(
         custom_id: impl Into<String>,
@@ -682,6 +682,29 @@ impl InteractionResponse {
                 components,
                 ..Default::default()
             }),
+        }
+    }
+
+    /// Respond to a command with the built-in premium upsell prompt.
+    ///
+    /// Discord marks the response type as deprecated in favour of linking to
+    /// the premium checkout flow yourself, but the opcode is still accepted
+    /// and remains the easiest way to trigger the native Nitro / app-premium
+    /// upgrade dialog. `data` is sent as an empty object because Discord
+    /// ignores it for this response type.
+    #[allow(deprecated)]
+    pub fn premium_required() -> Self {
+        Self {
+            kind: InteractionResponseType::PremiumRequired,
+            data: None,
+        }
+    }
+
+    /// Launch the activity associated with this application.
+    pub fn launch_activity() -> Self {
+        Self {
+            kind: InteractionResponseType::LaunchActivity,
+            data: None,
         }
     }
 

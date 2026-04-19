@@ -281,7 +281,7 @@ impl BotBuilder {
         self
     }
 
-    /// Register a [`Module`] — a struct that groups prefix commands, slash
+    /// Register a [`Module`]: a struct that groups prefix commands, slash
     /// command definitions, and an interaction handler.
     ///
     /// ```rust,ignore
@@ -431,7 +431,7 @@ pub async fn dispatch(
                             .await;
                     }
                 }
-                // Ping and any future types — fall through to the event handler.
+                // Ping and any future types: fall through to the event handler.
                 _ => handler.interaction(ctx, interaction).await,
             }
         }

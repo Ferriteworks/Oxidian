@@ -26,7 +26,7 @@ use crate::snowflake::Snowflake;
 
 use super::user::User;
 
-/// A guild member — the relationship between a [`User`] and a guild.
+/// A guild member: the relationship between a [`User`] and a guild.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Member {
     /// The underlying user, if included in the payload.
